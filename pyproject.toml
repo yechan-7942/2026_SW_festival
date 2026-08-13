@@ -1,0 +1,16 @@
+[project]
+name = "pohang-infra-gap"
+version = "0.1.0"
+description = "포항 외국인 주민 생활 인프라 격차 진단·정책생성 시스템"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "geopandas>=1.0",
+    "shapely>=2.0",
+    "pyproj>=3.6",
+    "scipy>=1.13",
+    "pandas>=2.2",
+    "pyarrow>=17.0",
+    "plotly>=5.24",
+    "anthropic>=0.40",
+]
