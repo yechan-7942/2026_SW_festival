@@ -1,32 +1,20 @@
 import pandas as pd
 
-HOSPITAL_PATH = "data/raw/전국 병의원 및 약국 현황 2026.3/1.병원정보서비스(2026.3.).xlsx"
-PHARMACY_PATH = "data/raw/전국 병의원 및 약국 현황 2026.3/2.약국정보서비스(2026.3.).xlsx"
+from src.ingest.datagokr import load_facilities
+
 LEGAL_DONG_MAP_PATH = "data/processed/legal_dong_to_admin.csv"
 ADM_CODE_MAP_PATH = "data/processed/adm_code_map.csv"
 
-# 심평원 원본 컬럼명 → 파이프라인 표준 컬럼명.
-# 주의: 원본 '읍면동' 컬럼은 행정동이 아니라 법정동 단위다 (예: 남빈동·대신동·
-# 대흥동은 전부 중앙동 관할 법정동). reports/m1_legal_dong_mapping.md 참고.
-FACILITY_COLUMNS = {
-    "암호화요양기호": "fac_id",
-    "종별코드명": "fac_type",
-    "읍면동": "legal_dong_nm",
-    "시군구코드명": "sigungu_nm",
-    "좌표(X)": "lon",
-    "좌표(Y)": "lat",
-}
+# 심평원 전국 데이터(src.ingest.datagokr)에서 포항만 골라내는 지역 필터.
+# 원본 sigungu_nm 값 → 표준 gu명.
 POHANG_SIGUNGU = {"포항남구": "남구", "포항북구": "북구"}
 
 
 def load_pohang_facilities() -> pd.DataFrame:
-    hospitals = pd.read_excel(HOSPITAL_PATH)
-    pharmacies = pd.read_excel(PHARMACY_PATH)
-    combined = pd.concat([hospitals, pharmacies], ignore_index=True)
-    combined = combined[combined["시군구코드명"].isin(POHANG_SIGUNGU)]
-    combined = combined.rename(columns=FACILITY_COLUMNS)[list(FACILITY_COLUMNS.values())]
-    combined["gu"] = combined["sigungu_nm"].map(POHANG_SIGUNGU)
-    return combined.drop(columns="sigungu_nm")
+    facilities = load_facilities()
+    facilities = facilities[facilities["sigungu_nm"].isin(POHANG_SIGUNGU)].copy()
+    facilities["gu"] = facilities["sigungu_nm"].map(POHANG_SIGUNGU)
+    return facilities.drop(columns="sigungu_nm")
 
 
 def load_legal_dong_map() -> pd.DataFrame:
