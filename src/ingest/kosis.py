@@ -20,6 +20,7 @@ def fetch_population(
     org_id: str,
     tbl_id: str,
     itm_id: str,
+    obj_l2: str,
     start_prd: str,
     end_prd: str,
 ) -> dict:
@@ -33,7 +34,7 @@ def fetch_population(
         "tblId": tbl_id,
         "itmId": itm_id,
         "objL1": obj_l1,
-        "objL2": "0",
+        "objL2": obj_l2,
         "prdSe": "Y",
         "startPrdDe": start_prd,
         "endPrdDe": end_prd,
@@ -60,6 +61,7 @@ def fetch_all_target_units(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
             org_id=kosis_cfg["org_id"],
             tbl_id=kosis_cfg["tbl_id"],
             itm_id=kosis_cfg["itm_id"],
+            obj_l2=kosis_cfg["obj_l2"],
             start_prd=kosis_cfg["start_prd"],
             end_prd=kosis_cfg["end_prd"],
         )

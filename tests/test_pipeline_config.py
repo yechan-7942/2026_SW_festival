@@ -26,7 +26,7 @@ def test_target_admin_units_gu_values_are_valid():
 
 def test_kosis_section_has_required_keys():
     config = _load_config()
-    required = {"org_id", "tbl_id", "itm_id", "start_prd", "end_prd"}
+    required = {"org_id", "tbl_id", "itm_id", "obj_l2", "start_prd", "end_prd"}
     assert required.issubset(config["kosis"].keys())
 
 
