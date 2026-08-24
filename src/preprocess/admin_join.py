@@ -7,7 +7,7 @@ from src.preprocess.crs import reproject_points
 
 LEGAL_DONG_MAP_PATH = "data/processed/legal_dong_to_admin.csv"
 ADM_CODE_MAP_PATH = "data/processed/adm_code_map.csv"
-INTERIM_FACILITIES_PATH = "data/interim/facilities_pohang.parquet"
+FACILITIES_OUTPUT_PATH = "data/processed/facilities.parquet"
 
 # 심평원 전국 데이터(src.ingest.datagokr)에서 포항만 골라내는 지역 필터.
 # 원본 sigungu_nm 값 → 표준 gu명.
@@ -68,12 +68,12 @@ def facility_counts_by_dong() -> pd.DataFrame:
     )
 
 
-def save_facilities_interim(path: str = INTERIM_FACILITIES_PATH) -> str:
-    """조인+재투영된 시설 테이블을 data/interim/에 캐시한다.
+def save_facilities(path: str = FACILITIES_OUTPUT_PATH) -> str:
+    """조인+재투영된 시설 테이블을 README §5 facilities.parquet 계약대로 저장한다.
 
-    아직 capacity 컬럼이 없어(README §5 facilities.parquet 계약 미충족)
-    data/processed/가 아니라 data/interim/에 둔다 — 이후 상세정보서비스
-    파일에서 capacity를 derive하면 그때 data/processed/로 승격한다.
+    계약이 요구하는 [fac_id, fac_type, lon, lat, capacity]에 legal_dong_nm,
+    gu, adm_cd, geometry(EPSG:5179)를 덧붙인 상위 집합이다 — access 레이어가
+    필요하면 쓰고 아니면 무시할 수 있다.
     """
     joined = join_facilities_to_admin_dong()
     reprojected = reproject_points(joined)

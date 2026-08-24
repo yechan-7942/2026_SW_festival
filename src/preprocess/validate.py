@@ -53,10 +53,17 @@ def validate_facility_records(df: pd.DataFrame) -> list[str]:
         dupes = df.loc[df["fac_id"].duplicated(), "fac_id"].tolist()
         errors.append(f"fac_id 중복 {len(dupes)}건")
 
-    for col in ("adm_cd", "lon", "lat", "fac_type"):
+    for col in ("adm_cd", "lon", "lat", "fac_type", "capacity"):
         n_null = df[col].isna().sum()
         if n_null > 0:
             errors.append(f"{col} 결측 {n_null}건")
+
+    non_positive_capacity = df[df["capacity"] <= 0]
+    if len(non_positive_capacity) > 0:
+        errors.append(
+            f"capacity가 0 이하인 레코드 {len(non_positive_capacity)}건 "
+            f"(src.ingest.datagokr가 최소 1로 채우므로 정상이라면 발생하지 않아야 함)"
+        )
 
     out_of_bounds = df[
         ~df["lon"].between(*POHANG_LON_RANGE) | ~df["lat"].between(*POHANG_LAT_RANGE)

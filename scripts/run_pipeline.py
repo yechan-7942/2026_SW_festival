@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.ingest import kosis  # noqa: E402
 from src.ingest.datagokr import load_facilities  # noqa: E402
 from src.preprocess import validate  # noqa: E402
-from src.preprocess.admin_join import save_facilities_interim  # noqa: E402
+from src.preprocess.admin_join import save_facilities  # noqa: E402
 
 # 아직 실제 로직이 없는 단계. reports/m1_structure_proposal.md의 블로커에
 # 걸려 있어 그 이유를 그대로 보여준다 — 조용히 건너뛰지 않는다.
@@ -36,7 +36,7 @@ def run_ingest(config_path: str) -> None:
 
 def run_preprocess() -> bool:
     print("[preprocess] 법정동 → 행정동 조인 + 좌표 재투영...")
-    path = save_facilities_interim()
+    path = save_facilities()
     print(f"  저장: {path}")
 
     print("[preprocess] 검증...")
