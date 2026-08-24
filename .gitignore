@@ -6,7 +6,6 @@
 .vscode/
 
 # Raw source data — never commit, see data/MANIFEST.yaml for provenance
-Data/
 data/raw/
 
 # Python
