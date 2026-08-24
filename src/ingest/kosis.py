@@ -2,6 +2,7 @@ import os
 import json
 import yaml
 import requests
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -66,6 +67,22 @@ def fetch_all_target_units(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
             end_prd=kosis_cfg["end_prd"],
         )
     return results
+
+
+def population_by_dong(config_path: str = DEFAULT_CONFIG_PATH) -> pd.DataFrame:
+    """행정동별 최신연도(end_prd) 총인구·외국인 인구를 [adm_cd, pop_total, pop_foreign]로 정리한다."""
+    config = load_config(config_path)
+    latest_year = config["kosis"]["end_prd"]
+    results = fetch_all_target_units(config_path)
+    rows = []
+    for adm_cd, records in results.items():
+        if not isinstance(records, list):
+            raise RuntimeError(f"KOSIS 조회 실패(adm_cd={adm_cd}): {records}")
+        latest = [r for r in records if r["PRD_DE"] == latest_year]
+        pop_total = next(r["DT"] for r in latest if r["ITM_NM"] == "총인구")
+        pop_foreign = next(r["DT"] for r in latest if r["ITM_NM"] == "외국인")
+        rows.append({"adm_cd": adm_cd, "pop_total": int(pop_total), "pop_foreign": int(pop_foreign)})
+    return pd.DataFrame(rows)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,17 @@
 from pathlib import Path
 
+import geopandas as gpd
 import pandas as pd
 
 from src.ingest.datagokr import load_facilities
+from src.ingest.kosis import population_by_dong
+from src.ingest.sgis import fetch_pohang_boundaries
 from src.preprocess.crs import reproject_points
 
 LEGAL_DONG_MAP_PATH = "data/processed/legal_dong_to_admin.csv"
 ADM_CODE_MAP_PATH = "data/processed/adm_code_map.csv"
 FACILITIES_OUTPUT_PATH = "data/processed/facilities.parquet"
+ADMIN_UNITS_OUTPUT_PATH = "data/processed/admin_units.parquet"
 
 # 심평원 전국 데이터(src.ingest.datagokr)에서 포항만 골라내는 지역 필터.
 # 원본 sigungu_nm 값 → 표준 gu명.
@@ -26,7 +30,7 @@ def load_legal_dong_map() -> pd.DataFrame:
 
 
 def load_current_admin_units() -> pd.DataFrame:
-    df = pd.read_csv(ADM_CODE_MAP_PATH)
+    df = pd.read_csv(ADM_CODE_MAP_PATH, dtype={"adm_cd_sgis": str})
     return df[df["status"] == "current"]
 
 
@@ -82,14 +86,59 @@ def save_facilities(path: str = FACILITIES_OUTPUT_PATH) -> str:
     return path
 
 
-def validate_point_in_polygon(joined: pd.DataFrame):
-    """SGIS 행정동 경계 폴리곤 확보 후 구현할 2차 검증 자리표시자.
+def load_admin_boundaries() -> gpd.GeoDataFrame:
+    """SGIS 경계(adm_cd_sgis 기준)를 adm_code_map.csv 크로스워크로 adm_cd_kosis 기준으로 바꾼다."""
+    boundaries = fetch_pohang_boundaries()
+    crosswalk = load_current_admin_units()[["current_adm_cd_kosis", "adm_cd_sgis"]]
+    merged = boundaries.merge(crosswalk, on="adm_cd_sgis", how="left")
+    unmatched = merged[merged["current_adm_cd_kosis"].isna()]
+    if len(unmatched) > 0:
+        raise ValueError(
+            f"{len(unmatched)}개 SGIS 행정동이 adm_code_map.csv와 매칭되지 않습니다: "
+            f"{sorted(unmatched['adm_nm_full'].unique().tolist())}"
+        )
+    merged = merged.rename(columns={"current_adm_cd_kosis": "adm_cd"})
+    return gpd.GeoDataFrame(merged[["adm_cd", "adm_nm", "gu", "geometry"]], geometry="geometry", crs=boundaries.crs)
 
-    reports/m1_structure_proposal.md 블로커 1(SGIS Open API 키)이 풀리면,
-    joined의 (lon, lat)을 crs.reproject_points로 변환한 뒤 행정동 폴리곤과
-    point-in-polygon 대조해 이름 매칭 결과와 불일치하는 레코드를 찾는다.
+
+def validate_point_in_polygon(joined: pd.DataFrame) -> pd.DataFrame:
+    """법정동 이름 매칭(1차 조인)으로 배정된 adm_cd가 실제 좌표 기준 SGIS
+    행정동 폴리곤과 일치하는지 point-in-polygon으로 교차검증한다.
+
+    일치 여부만 판정하고 파이프라인을 중단시키지는 않는다 — 법정동/행정동
+    괴리(reports/m1_legal_dong_mapping.md)처럼 실제 데이터 특성일 수 있어
+    호출부가 결과를 보고 판단하게 한다. 반환값은 불일치 레코드만 담은
+    DataFrame이며, 비어 있으면 전부 일치한다는 뜻이다.
     """
-    raise NotImplementedError("SGIS 행정동 경계 파일 확보 전까지는 구현할 수 없음")
+    points = reproject_points(joined)
+    boundaries = load_admin_boundaries()
+    sjoined = gpd.sjoin(points, boundaries[["adm_cd", "geometry"]], how="left", predicate="within")
+    mismatched = sjoined[sjoined["adm_cd_left"] != sjoined["adm_cd_right"]]
+    return mismatched[["fac_id", "adm_cd_left", "adm_cd_right"]].rename(
+        columns={"adm_cd_left": "adm_cd_by_name", "adm_cd_right": "adm_cd_by_point"}
+    )
+
+
+def build_admin_units() -> gpd.GeoDataFrame:
+    """README §5 admin_units.parquet 계약: [adm_cd, adm_nm, geometry, pop_total, pop_foreign]."""
+    boundaries = load_admin_boundaries()
+    population = population_by_dong()
+    merged = boundaries.merge(population, on="adm_cd", how="left")
+    unmatched = merged[merged["pop_total"].isna()]
+    if len(unmatched) > 0:
+        raise ValueError(f"{len(unmatched)}개 행정동에 인구 데이터가 없습니다: {sorted(unmatched['adm_nm'].unique().tolist())}")
+    return gpd.GeoDataFrame(
+        merged[["adm_cd", "adm_nm", "geometry", "pop_total", "pop_foreign"]],
+        geometry="geometry",
+        crs=boundaries.crs,
+    )
+
+
+def save_admin_units(path: str = ADMIN_UNITS_OUTPUT_PATH) -> str:
+    gdf = build_admin_units()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    gdf.to_parquet(path)
+    return path
 
 
 if __name__ == "__main__":

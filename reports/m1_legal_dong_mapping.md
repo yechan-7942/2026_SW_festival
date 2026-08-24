@@ -25,5 +25,5 @@ M1 구조제안 문서는 심평원 병원/약국 데이터의 `읍면동` 컬�
 
 ## 남은 한계
 
-- 이 조인은 **이름 매칭(1차)만** 구현했다. `m1_structure_proposal.md`가 제안한 2차 검증(좌표 point-in-polygon 대조)은 SGIS 행정동 경계 파일이 없어 아직 불가능 — `admin_join.validate_point_in_polygon()`은 `NotImplementedError` 자리표시자로만 존재한다. SGIS 키 확보 후 반드시 대조해 이름 매칭 결과를 검증해야 한다.
+- ~~이 조인은 이름 매칭(1차)만 구현했다.~~ → SGIS 키 확보 후 2차 검증(point-in-polygon) 구현 완료, 결과는 `reports/m2_admin_units.md` 참고 (908건 중 11건 불일치, 약 1.2%).
 - 이 매핑은 2026.3 심평원 데이터 스냅샷 기준으로 만들었다. 데이터가 갱신되어 새 법정동 이름이 등장하면 `admin_join.py`가 `ValueError`로 즉시 실패하도록 만들어 뒀으니(미매칭 레코드 발생 시), 그때 이 CSV를 갱신하면 된다.

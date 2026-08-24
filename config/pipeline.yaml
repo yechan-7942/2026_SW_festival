@@ -24,6 +24,12 @@ kosis:
   start_prd: "2020"
   end_prd: "2025"
 
+sgis:
+  year: "2025" # hadmarea.geojson 기준연도. KOSIS 인구 데이터(end_prd)와 연도 맞춤.
+  sigungu_codes: # 통계청 행정구역코드(5자리), low_search=1로 하위 읍면동 29개 전부 조회
+    - "37011" # 포항시 남구
+    - "37012" # 포항시 북구
+
 # 대상 행정동 29개 — data/processed/adm_code_map.csv의 status=current만 추출.
 # 신-구 동 중복(죽도1/2동, 상대1/2동, 해도1/2동, 학산동)은 이중 집계를 막기 위해
 # 제외했다. adm_code_map.csv를 갱신하면 이 목록도 함께 재생성해야 한다.

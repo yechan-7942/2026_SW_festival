@@ -27,20 +27,20 @@
 | 마일스톤 | 상태 | 산출물 |
 |---|---|---|
 | M0. 데이터 해상도 검증 게이트 | 조건부 통과 | `reports/m0_data_audit.md` |
-| M1. 수집·정제 파이프라인 | 진행 중 — 의료기관 완료, 인구·경계 데이터는 API 키 대기 | `data/processed/facilities.parquet`, `adm_code_map.csv`, `legal_dong_to_admin.csv` |
-| M2. 2SFCA 접근성 프로토타입 | 대기 — SGIS 경계(geometry) 필요 | 의료·금융 2종 접근성 지수 |
+| M1. 수집·정제 파이프라인 | 진행 중 — 의료기관·인구·행정동 경계 완료, 상가정보만 남음 | `data/processed/facilities.parquet`, `admin_units.parquet`, `adm_code_map.csv`, `legal_dong_to_admin.csv` |
+| M2. 2SFCA 접근성 프로토타입 | 대기 — 입력 데이터(경계+인구) 준비 완료, 2SFCA 로직 미착수 | 의료·금융 2종 접근성 지수 |
 | M3. 격차 점수 + 가중치 반영 | 대기 | 행정동별 Gap Score |
 | M4. NLP 수요 신호 추출 | 대기 — MDIS 원본 필요 | 결핍 유형 라벨 |
 | M5. LLM 리포트 + 시각화 MVP | 대기 | 히트맵 + 처방 카드 |
 
-M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`) 참고. M1이 막힌 지점은 SGIS/MDIS/상가정보 3개 외부 계정·API 키뿐이고, 그 전까지 가능한 코드 작업(ingest/preprocess 분리, 검증, 파이프라인 스크립트)은 완료된 상태다.
+M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`, `m2_admin_units.md`) 참고. KOSIS/SGIS API 키는 확보되어 인구·행정동 경계 데이터까지 파이프라인에 연결됐고, 남은 외부 블로커는 MDIS 로그인과 상가정보 ingest 코드뿐이다.
 
 > **M0는 차단 게이트다.** 외국인주민현황 데이터가 행정동 단위로 확보되지 않으면 M2 이후의 설계가 통째로 바뀐다. M0를 통과하기 전에는 `src/access/` 이하를 작성하지 않는다.
 
 ### M0에서 확인할 것
 
 1. 행안부 「지자체 외국인주민현황」의 최소 공표 단위 — 시군구인가, 읍면동인가
-2. 포항시 남구·북구의 행정동 목록과 SGIS 경계 파일의 행정동 코드 일치 여부
+2. ~~포항시 남구·북구의 행정동 목록과 SGIS 경계 파일의 행정동 코드 일치 여부~~ → 확인 완료(29/29 일치, `reports/m2_admin_units.md`)
 3. 다문화가족실태조사 '지원 서비스 요구' 항목의 **응답 형식** — 객관식/척도인지, 주관식 텍스트가 존재하는지
 4. 상가정보·의료기관 데이터의 좌표계 (EPSG 코드)와 포항시 레코드 수
 
@@ -54,12 +54,12 @@ M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_
 
 | 데이터 | 출처 | 용도 | 확보 |
 |---|---|---|---|
-| 지자체 외국인주민현황 | 행안부 / KOSIS | 외국인 수요 밀도 | ⬜ (테이블 확인됨, `KOSIS_API_KEY` 필요) |
-| 주민등록인구 (행정동) | 행안부 / KOSIS | 격차 점수 분모 | ⬜ (동일) |
-| 행정동 경계 폴리곤 | 통계청 SGIS | 공간 조인 기준 | ⬜ (SGIS API 키 필요) |
+| 지자체 외국인주민현황 | 행안부 / KOSIS | 외국인 수요 밀도 | ✅ `data/processed/admin_units.parquet` (`pop_foreign`) |
+| 주민등록인구 (행정동) | 행안부 / KOSIS | 격차 점수 분모 | ✅ `data/processed/admin_units.parquet` (`pop_total`) |
+| 행정동 경계 폴리곤 | 통계청 SGIS | 공간 조인 기준 | ✅ `data/processed/admin_units.parquet` (`geometry`, EPSG:5179) |
 | 전국다문화가족실태조사 + 코드북 | MDIS / data.go.kr | 수요 신호 추출 | ⬜ (MDIS 로그인 필요) |
 | 의료기관 현황 (좌표) | 심평원 / data.go.kr | 의료 인프라 공급 | ✅ `data/processed/facilities.parquet` |
-| 상가(상권)정보 | 소상공인시장진흥공단 | 금융·생활시설 좌표 | ⬜ (data.go.kr 로그인 필요) |
+| 상가(상권)정보 | 소상공인시장진흥공단 | 금융·생활시설 좌표 | ⬜ (API 키 확보, `src/ingest/`에 fetch 코드 미작성) |
 
 **원본 데이터는 커밋하지 않는다.** `data/raw/`는 `.gitignore` 대상이며, 대신 `data/MANIFEST.yaml`에 각 파일의 출처 URL·다운로드 일시·행 수·SHA256 해시를 기록한다. 재현성 확보와 동시에, 심사에서 "데이터를 실제로 다뤘는가"에 대한 증거가 된다.
 
