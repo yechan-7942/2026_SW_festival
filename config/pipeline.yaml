@@ -14,7 +14,7 @@ infra_types:
     source: 심평원 병원정보서비스 + 약국정보서비스 (data.go.kr)
   - id: commercial
     label: 상가(상권)정보
-    source: 소상공인시장진흥공단 (미확보 — reports/m1_structure_proposal.md 블로커 3)
+    source: 소상공인시장진흥공단 (data.go.kr)
 
 kosis:
   org_id: "216"
@@ -29,6 +29,16 @@ sgis:
   sigungu_codes: # 통계청 행정구역코드(5자리), low_search=1로 하위 읍면동 29개 전부 조회
     - "37011" # 포항시 남구
     - "37012" # 포항시 북구
+
+commercial:
+  # 소상공인시장진흥공단 상가정보 API(storeListInRadius)는 행정동 코드로 직접
+  # 조회할 수 없다 — 행안부 법정동코드 체계(경북=47)를 쓰는데 이 프로젝트는
+  # SGIS/KOSIS 통계청 코드(경북=37)를 기준으로 삼아(README §5) 값 자체가
+  # 안 맞는다(reports/m2_commercial.md). 그래서 행정동 중심 좌표 반경검색으로
+  # 우회하고, 소속 배정은 preprocess 단계 point-in-polygon으로 처리한다.
+  max_radius_m: 10000 # API 실측 상한 — 11000m부터 INVALID_REQUEST_PARAMETER_ERROR
+  radius_margin: 1.15 # 행정동 중심→최원거리 정점 실측값에 곱하는 여유
+  num_of_rows_per_page: 1000 # API 페이지당 최대 행 수(실측)
 
 # 대상 행정동 29개 — data/processed/adm_code_map.csv의 status=current만 추출.
 # 신-구 동 중복(죽도1/2동, 상대1/2동, 해도1/2동, 학산동)은 이중 집계를 막기 위해

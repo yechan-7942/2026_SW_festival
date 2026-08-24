@@ -28,12 +28,12 @@
 |---|---|---|
 | M0. 데이터 해상도 검증 게이트 | 조건부 통과 | `reports/m0_data_audit.md` |
 | M1. 수집·정제 파이프라인 | 진행 중 — 의료기관·인구·행정동 경계 완료, 상가정보만 남음 | `data/processed/facilities.parquet`, `admin_units.parquet`, `adm_code_map.csv`, `legal_dong_to_admin.csv` |
-| M2. 2SFCA 접근성 프로토타입 | 대기 — 입력 데이터(경계+인구) 준비 완료, 2SFCA 로직 미착수 | 의료·금융 2종 접근성 지수 |
+| M2. 2SFCA 접근성 프로토타입 | 대기 — 경계·인구·의료·생활시설 입력 완료, 2SFCA 로직 미착수. ⚠ "금융" 지수는 상가정보 API에 데이터 없음(`reports/m2_commercial.md`), 별도 소스 필요 | 의료·금융 2종 접근성 지수 |
 | M3. 격차 점수 + 가중치 반영 | 대기 | 행정동별 Gap Score |
 | M4. NLP 수요 신호 추출 | 대기 — MDIS 원본 필요 | 결핍 유형 라벨 |
 | M5. LLM 리포트 + 시각화 MVP | 대기 | 히트맵 + 처방 카드 |
 
-M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`, `m2_admin_units.md`) 참고. KOSIS/SGIS API 키는 확보되어 인구·행정동 경계 데이터까지 파이프라인에 연결됐고, 남은 외부 블로커는 MDIS 로그인과 상가정보 ingest 코드뿐이다.
+M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`, `m2_admin_units.md`, `m2_commercial.md`) 참고. KOSIS/SGIS/data.go.kr API 키가 전부 확보되어 인구·행정동 경계·상가정보까지 파이프라인에 연결됐고, 남은 외부 블로커는 MDIS 로그인뿐이다. 단, 상가정보 API에는 금융업 데이터가 없다는 것이 확인되어(`m2_commercial.md`) 금융 접근성 지수는 별도 소스가 필요하다.
 
 > **M0는 차단 게이트다.** 외국인주민현황 데이터가 행정동 단위로 확보되지 않으면 M2 이후의 설계가 통째로 바뀐다. M0를 통과하기 전에는 `src/access/` 이하를 작성하지 않는다.
 
@@ -59,7 +59,7 @@ M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_
 | 행정동 경계 폴리곤 | 통계청 SGIS | 공간 조인 기준 | ✅ `data/processed/admin_units.parquet` (`geometry`, EPSG:5179) |
 | 전국다문화가족실태조사 + 코드북 | MDIS / data.go.kr | 수요 신호 추출 | ⬜ (MDIS 로그인 필요) |
 | 의료기관 현황 (좌표) | 심평원 / data.go.kr | 의료 인프라 공급 | ✅ `data/processed/facilities.parquet` |
-| 상가(상권)정보 | 소상공인시장진흥공단 | 금융·생활시설 좌표 | ⬜ (API 키 확보, `src/ingest/`에 fetch 코드 미작성) |
+| 상가(상권)정보 | 소상공인시장진흥공단 | 생활시설 좌표 (금융 제외 — 아래 참고) | ✅ `src/ingest/commercial.py` (28,985건, `facilities.parquet` 병합 전) |
 
 **원본 데이터는 커밋하지 않는다.** `data/raw/`는 `.gitignore` 대상이며, 대신 `data/MANIFEST.yaml`에 각 파일의 출처 URL·다운로드 일시·행 수·SHA256 해시를 기록한다. 재현성 확보와 동시에, 심사에서 "데이터를 실제로 다뤘는가"에 대한 증거가 된다.
 
