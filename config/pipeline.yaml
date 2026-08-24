@@ -1,0 +1,116 @@
+# 포항 외국인 주민 생활 인프라 격차 진단 파이프라인 설정
+# 파라미터 외부화 원칙(README §1) — 대상 행정동, 인프라 종류, 임계 거리는
+# 코드에 하드코딩하지 않고 전부 여기서 관리한다.
+
+target_crs: EPSG:5179
+
+# 2SFCA 임계 거리 민감도 분석용 (README §7) — 단일 값 대신 여러 값을 돌려
+# 행정동 순위가 뒤집히는지 확인한다.
+distance_thresholds_km: [1, 3, 5]
+
+infra_types:
+  - id: medical
+    label: 의료기관
+    source: 심평원 병원정보서비스 + 약국정보서비스 (data.go.kr)
+  - id: commercial
+    label: 상가(상권)정보
+    source: 소상공인시장진흥공단 (미확보 — reports/m1_structure_proposal.md 블로커 3)
+
+kosis:
+  org_id: "216"
+  tbl_id: DT_216N_B000J2
+  itm_id: "16216T074713+16216TB000J201+16216TB000J202"
+  start_prd: "2020"
+  end_prd: "2025"
+
+# 대상 행정동 29개 — data/processed/adm_code_map.csv의 status=current만 추출.
+# 신-구 동 중복(죽도1/2동, 상대1/2동, 해도1/2동, 학산동)은 이중 집계를 막기 위해
+# 제외했다. adm_code_map.csv를 갱신하면 이 목록도 함께 재생성해야 한다.
+target_admin_units:
+  - adm_cd: "15216A1100A37010B000J301"
+    adm_nm: 중앙동
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J307"
+    adm_nm: 송도동
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J308"
+    adm_nm: 양학동
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J311"
+    adm_nm: 용흥동
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J312"
+    adm_nm: 우창동
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J313"
+    adm_nm: 두호동
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J314"
+    adm_nm: 장량동
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J315"
+    adm_nm: 환여동
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J316"
+    adm_nm: 청림동
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J317"
+    adm_nm: 제철동
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J318"
+    adm_nm: 효곡동
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J319"
+    adm_nm: 대이동
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J320"
+    adm_nm: 구룡포읍
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J321"
+    adm_nm: 흥해읍
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J322"
+    adm_nm: 연일읍
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J323"
+    adm_nm: 오천읍
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J324"
+    adm_nm: 신광면
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J325"
+    adm_nm: 청하면
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J326"
+    adm_nm: 송라면
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J327"
+    adm_nm: 기계면
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J328"
+    adm_nm: 죽장면
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J329"
+    adm_nm: 대송면
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J330"
+    adm_nm: 동해면
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J331"
+    adm_nm: 장기면
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J332"
+    adm_nm: 호미곶면
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J333"
+    adm_nm: 기북면
+    gu: 북구
+  - adm_cd: "15216A1100A37010B000J334"
+    adm_nm: 상대동
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J335"
+    adm_nm: 해도동
+    gu: 남구
+  - adm_cd: "15216A1100A37010B000J336"
+    adm_nm: 죽도동
+    gu: 북구
