@@ -8,6 +8,9 @@
 # Raw source data — never commit, see data/MANIFEST.yaml for provenance
 data/raw/
 
+# Pipeline cache — regenerable by re-running the pipeline, not source of truth
+data/interim/
+
 # Python
 __pycache__/
 *.py[cod]

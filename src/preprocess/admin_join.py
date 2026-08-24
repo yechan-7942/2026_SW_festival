@@ -1,9 +1,13 @@
+from pathlib import Path
+
 import pandas as pd
 
 from src.ingest.datagokr import load_facilities
+from src.preprocess.crs import reproject_points
 
 LEGAL_DONG_MAP_PATH = "data/processed/legal_dong_to_admin.csv"
 ADM_CODE_MAP_PATH = "data/processed/adm_code_map.csv"
+INTERIM_FACILITIES_PATH = "data/interim/facilities_pohang.parquet"
 
 # 심평원 전국 데이터(src.ingest.datagokr)에서 포항만 골라내는 지역 필터.
 # 원본 sigungu_nm 값 → 표준 gu명.
@@ -62,6 +66,20 @@ def facility_counts_by_dong() -> pd.DataFrame:
         .size()
         .reset_index(name="count")
     )
+
+
+def save_facilities_interim(path: str = INTERIM_FACILITIES_PATH) -> str:
+    """조인+재투영된 시설 테이블을 data/interim/에 캐시한다.
+
+    아직 capacity 컬럼이 없어(README §5 facilities.parquet 계약 미충족)
+    data/processed/가 아니라 data/interim/에 둔다 — 이후 상세정보서비스
+    파일에서 capacity를 derive하면 그때 data/processed/로 승격한다.
+    """
+    joined = join_facilities_to_admin_dong()
+    reprojected = reproject_points(joined)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    reprojected.to_parquet(path)
+    return path
 
 
 def validate_point_in_polygon(joined: pd.DataFrame):
