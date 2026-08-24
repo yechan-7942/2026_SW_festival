@@ -1,0 +1,147 @@
+# 원본 데이터(data/raw/, gitignore 대상) 출처·검증 정보 (README §3)
+#
+# source_url / downloaded_at은 이번 세션에서 실제로 다운로드한 기록이 없어
+# 확실하지 않다. 추측으로 채우지 않고 "확인 필요"로 남겼으니, 실제로 파일을
+# 받은 팀원이 채워야 한다. sha256/rows는 로컬 파일을 직접 열어 계산한 값이라
+# 신뢰할 수 있다 — 파일이 바뀌면 이 값들과 어긋나므로 그때 갱신할 것.
+
+files:
+  - path: "data/raw/경상북도_포항시_연도별인구현황_20260323.numbers"
+    publisher: 미상 (파일명 기준 경상북도·포항시 추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 283319
+    sha256: 375078542a125d9ec4ddd81775b87df0ce035bdfd1ef24853e5ccd79a3c2ba40
+    used_by: []
+    note: >
+      시 전체 장기 시계열 참고용으로만 확보. 행정동 단위가 아니라
+      reports/m1_structure_proposal.md #1에 따라 실제 파이프라인 입력에서는
+      제외하고 KOSIS DT_216N_B000J2로 대체.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/1.병원정보서비스(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정 — 공식 데이터셋명 기준)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 17021335
+    rows: 79562
+    sha256: 7fa39513aadf53595363a8d7eb3c4f5c7998efed211336c4a5f2d550711dba5b
+    used_by: [src/preprocess/admin_join.py]
+    note: 전국 79,562건 중 포항 남구·북구 671건만 파이프라인에서 사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/2.약국정보서비스(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정 — 공식 데이터셋명 기준)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 3944329
+    rows: 25688
+    sha256: 2848807cd3ab21be186a7f085c5714e443af36f356b781368c68eaab09eac9b4
+    used_by: [src/preprocess/admin_join.py]
+    note: 전국 25,688건 중 포항 남구·북구 237건만 파이프라인에서 사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/3.의료기관별상세정보서비스_01_시설정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 20119565
+    rows: 105250
+    sha256: 7301c6c671c25915c3271c4c36817f6638010f828961880e79f5c6081daf88f3
+    used_by: []
+    note: 미사용. 병상수 등 시설 상세정보 — capacity 필드 도입 시 검토.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/4.의료기관별상세정보서비스_02_세부정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 4767357
+    rows: 25015
+    sha256: 12b2939601051397c003049ea89df8d4b59bf788713d20cc591579f1625aa559
+    used_by: []
+    note: 미사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/5.의료기관별상세정보서비스_03_진료과목정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 14763166
+    rows: 433337
+    sha256: 54bd0f6f8ae47c11ab83ba3df80a08c5968c099a630df7f7b7096739bc665593
+    used_by: []
+    note: 미사용. 진료과목별 세부 인프라 유형 분류에 쓸 수 있음 (향후 검토).
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/6.의료기관별상세정보서비스_04_교통정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 2211988
+    rows: 40525
+    sha256: b5d31a6a594784a6f577dea7f3412bd207e37c82cb6ca191595974e2a484bbf3
+    used_by: []
+    note: 미사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/7.의료기관별상세정보서비스_05_의료장비정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 2388917
+    rows: 62783
+    sha256: 16968bdff786ff347394f85052920ab73ba63677e091d9229a4b573cb39c644e
+    used_by: []
+    note: 미사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/8.의료기관별상세정보서비스_06_식대가산정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 647113
+    rows: 15664
+    sha256: 29eaf6af9bac090dd93c8075a8ef220f6a4af6b752e11c3073c7b138ec12f1aa
+    used_by: []
+    note: 미사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/9.의료기관별상세정보서비스_07_간호등급정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 447756
+    rows: 13166
+    sha256: 9285359aebe0ea4b34c424c296bf1b38813628677943fb1ba7267955bb544c69
+    used_by: []
+    note: 미사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/10.의료기관별상세정보서비스_08_특수진료정보서비스(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 2058834
+    rows: 64629
+    sha256: 91195e648e28c158eb107f24fa62acf7651aac28548761284d719d3fab74963e
+    used_by: []
+    note: 미사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/11.의료기관별상세정보서비스_09_전문병원지정분야(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 20700
+    rows: 110
+    sha256: b35d7af1fe1ec4a4c71d7a2e219dc3b0ad257a561407e3536127e19cd6c44998
+    used_by: []
+    note: 미사용.
+
+  - path: "data/raw/전국 병의원 및 약국 현황 2026.3/12.의료기관별상세정보서비스_10_기타인력정보(2026.3.).xlsx"
+    publisher: 건강보험심사평가원 (추정)
+    source_url: 확인 필요
+    downloaded_at: 확인 필요
+    size_bytes: 1768519
+    rows: 43965
+    sha256: 8e39ef11665faf4aec1109ef727e6c9a97733d38b01e932ebdd98bea5b7d7d8a
+    used_by: []
+    note: 미사용.
+
+# 아직 확보되지 않은 데이터 (README §3 표 대비 ⬜ 상태, reports/m1_structure_proposal.md
+# "남은 블로커" 참고):
+#   - 지자체 외국인주민현황 / 주민등록인구 (행정동) — KOSIS API로 대체 예정, .env에
+#     KOSIS_API_KEY 없어 아직 실제 fetch는 안 됨 (src/ingest/kosis.py)
+#   - 행정동 경계 폴리곤 (SGIS) — API 키 발급 대기 (컴공 담당)
+#   - 전국다문화가족실태조사 + 코드북 (MDIS) — 원본 조사표 미확보 (AI융합/GM 담당)
+#   - 상가(상권)정보 (소상공인시장진흥공단) — 미확보 (컴공 담당)
