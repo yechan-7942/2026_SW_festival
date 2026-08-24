@@ -138,10 +138,11 @@ files:
     used_by: []
     note: 미사용.
 
-# 아직 확보되지 않은 데이터 (README §3 표 대비 ⬜ 상태, reports/m1_structure_proposal.md
-# "남은 블로커" 참고):
-#   - 지자체 외국인주민현황 / 주민등록인구 (행정동) — KOSIS API로 대체 예정, .env에
-#     KOSIS_API_KEY 없어 아직 실제 fetch는 안 됨 (src/ingest/kosis.py)
-#   - 행정동 경계 폴리곤 (SGIS) — API 키 발급 대기 (컴공 담당)
+# 지자체 외국인주민현황·주민등록인구(KOSIS)·행정동 경계 폴리곤(SGIS)·
+# 상가(상권)정보(소상공인시장진흥공단)는 API로 매번 새로 받아오는 데이터라
+# data/raw/에 고정 파일이 없다 — 이 MANIFEST는 raw 파일 대상이라 여기 없음.
+# 각 API의 파라미터·응답 구조·발견 사항은 src/ingest/{kosis,sgis,commercial}.py와
+# reports/(m2_admin_units.md, m2_commercial.md)에 기록되어 있다.
+#
+# 아직 확보되지 않은 데이터 (README §3 표 대비 ⬜ 상태):
 #   - 전국다문화가족실태조사 + 코드북 (MDIS) — 원본 조사표 미확보 (AI융합/GM 담당)
-#   - 상가(상권)정보 (소상공인시장진흥공단) — 미확보 (컴공 담당)

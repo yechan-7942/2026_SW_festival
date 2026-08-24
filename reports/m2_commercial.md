@@ -54,7 +54,15 @@
 ## 남은 한계
 
 - 흥해읍·죽장면은 반경 상한 때문에 완전한 커버리지가 아니다(위 참고).
-- 행정동 경계 근처(특히 흥해읍처럼 시 경계에 가까운 동)는 반경검색이 포항 밖 인접 시군 상가까지 끌어올 수 있다 — 의도된 동작이다: ingest 단계는 넓게 가져오고, **행정동 배정(및 포항 경계 밖 제외)은 아직 구현 전인 preprocess 단계**(SGIS 폴리곤 point-in-polygon, `admin_join.py`와 동일 패턴)에서 처리해야 한다. 이 report 작성 시점 기준 `facilities.parquet`에는 아직 합쳐 넣지 않았다.
+- 행정동 경계 근처(특히 흥해읍처럼 시 경계에 가까운 동)는 반경검색이 포항 밖 인접 시군 상가까지 끌어온다 — 의도된 동작이다: ingest 단계는 넓게 가져오고, 포항 경계 밖 레코드는 preprocess 단계(SGIS 폴리곤 point-in-polygon)에서 제외한다.
+
+## 후속 — `facilities.parquet` 병합 완료 (2026-08-25)
+
+`src/preprocess/admin_join.py`에 `load_commercial_facilities_with_admin_dong()`을 추가해 위에서 언급한 preprocess 단계를 구현했다. `load_admin_boundaries()`가 반환하는 29개 SGIS 행정동 폴리곤에 `gpd.sjoin(..., predicate="within")`으로 상가업소 좌표를 배정하고, `how="inner"`라 어떤 포항 행정동 폴리곤에도 속하지 않는 점(포항 밖으로 넘어간 반경검색 결과)은 조인 과정에서 자연히 빠진다.
+
+**결과**: ingest 단계 28,985건 → 경계 밖 810건 제외 → **28,175건**이 행정동 배정을 받아 `facilities.parquet`에 들어갔다. 심평원 의료기관 908건과 합쳐 `facilities.parquet` 총 29,083건, `fac_id` 전부 고유, `adm_cd` 결측 0건 확인.
+
+`fac_type` 어휘가 두 소스(심평원=종별코드명, 상가정보=업종중분류)로 완전히 달라 access 레이어가 "의료"만 걸러 쓰기 어려울 수 있어, `category_large` 컬럼을 추가했다 — 의료기관은 상가정보의 제외 대분류명("보건의료")을 그대로 재사용해 일관성을 맞췄다.
 
 ### ⚠ 금융 카테고리가 이 데이터셋에 없다
 

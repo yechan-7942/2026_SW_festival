@@ -3,6 +3,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
+from src.ingest.commercial import fetch_pohang_stores
 from src.ingest.datagokr import load_facilities
 from src.ingest.kosis import population_by_dong
 from src.ingest.sgis import fetch_pohang_boundaries
@@ -12,6 +13,30 @@ LEGAL_DONG_MAP_PATH = "data/processed/legal_dong_to_admin.csv"
 ADM_CODE_MAP_PATH = "data/processed/adm_code_map.csv"
 FACILITIES_OUTPUT_PATH = "data/processed/facilities.parquet"
 ADMIN_UNITS_OUTPUT_PATH = "data/processed/admin_units.parquet"
+
+# 의료·상가 두 소스를 합친 facilities.parquet의 최종 컬럼. README §5 계약
+# [fac_id, fac_type, lon, lat, capacity]에 gu/adm_cd/geometry(공간 조인
+# 결과)와 category_large(대분류 — fac_type 어휘가 소스마다 달라서 필요,
+# 아래 load_commercial_facilities_with_admin_dong 참고)를 덧붙인다.
+# legal_dong_nm은 심평원 데이터에만 있는 값이라 상가 쪽은 결측으로 둔다.
+FACILITIES_COLUMNS = [
+    "fac_id",
+    "fac_type",
+    "category_large",
+    "legal_dong_nm",
+    "lon",
+    "lat",
+    "capacity",
+    "gu",
+    "adm_cd",
+    "geometry",
+]
+
+# 심평원 fac_type(종별코드명, 예: 종합병원·약국)과 상가정보 fac_type(업종중분류,
+# 예: 편의점·일반의류 소매업)은 서로 다른 어휘 체계다. access 레이어가 "의료"
+# 대분류로 묶어 필터링할 수 있도록, 상가정보가 이미 제외한 대분류명("보건의료",
+# commercial.py의 EXCLUDED_CATEGORY_LARGE)을 그대로 재사용해 일관성을 맞춘다.
+MEDICAL_CATEGORY_LARGE = "보건의료"
 
 # 심평원 전국 데이터(src.ingest.datagokr)에서 포항만 골라내는 지역 필터.
 # 원본 sigungu_nm 값 → 표준 gu명.
@@ -64,26 +89,12 @@ def join_facilities_to_admin_dong() -> pd.DataFrame:
 
 
 def facility_counts_by_dong() -> pd.DataFrame:
-    joined = join_facilities_to_admin_dong()
+    combined = build_facilities()
     return (
-        joined.groupby(["adm_cd", "gu", "fac_type"])
+        combined.groupby(["adm_cd", "gu", "category_large", "fac_type"])
         .size()
         .reset_index(name="count")
     )
-
-
-def save_facilities(path: str = FACILITIES_OUTPUT_PATH) -> str:
-    """조인+재투영된 시설 테이블을 README §5 facilities.parquet 계약대로 저장한다.
-
-    계약이 요구하는 [fac_id, fac_type, lon, lat, capacity]에 legal_dong_nm,
-    gu, adm_cd, geometry(EPSG:5179)를 덧붙인 상위 집합이다 — access 레이어가
-    필요하면 쓰고 아니면 무시할 수 있다.
-    """
-    joined = join_facilities_to_admin_dong()
-    reprojected = reproject_points(joined)
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    reprojected.to_parquet(path)
-    return path
 
 
 def load_admin_boundaries() -> gpd.GeoDataFrame:
@@ -117,6 +128,59 @@ def validate_point_in_polygon(joined: pd.DataFrame) -> pd.DataFrame:
     return mismatched[["fac_id", "adm_cd_left", "adm_cd_right"]].rename(
         columns={"adm_cd_left": "adm_cd_by_name", "adm_cd_right": "adm_cd_by_point"}
     )
+
+
+def load_medical_facilities_with_admin_dong() -> gpd.GeoDataFrame:
+    """심평원 시설(법정동 이름 매칭 + 재투영)에 category_large를 붙여 상가와 스키마를 맞춘다."""
+    joined = join_facilities_to_admin_dong()
+    reprojected = reproject_points(joined)
+    reprojected["category_large"] = MEDICAL_CATEGORY_LARGE
+    return reprojected
+
+
+def load_commercial_facilities_with_admin_dong() -> gpd.GeoDataFrame:
+    """상가업소(commercial.fetch_pohang_stores)에 SGIS 폴리곤 point-in-polygon으로 행정동을 배정한다.
+
+    상가정보에는 법정동 텍스트가 없어(commercial.py 주석 참고) 심평원처럼
+    이름 매칭을 할 수 없다 — 좌표 조인이 유일한 방법이다. inner join이라
+    반경검색이 포항 경계 밖까지 끌어온 레코드(흥해읍 등 경계 인접 동 주변,
+    reports/m2_commercial.md에 알려진 한계로 기록)는 여기서 자연히 제외된다:
+    어떤 포항 행정동 폴리곤에도 속하지 않는 점이기 때문이다.
+    """
+    stores = fetch_pohang_stores()
+    points = reproject_points(stores)
+    boundaries = load_admin_boundaries()
+    sjoined = gpd.sjoin(points, boundaries[["adm_cd", "gu", "geometry"]], how="inner", predicate="within")
+    duplicated = sjoined[sjoined["fac_id"].duplicated(keep=False)]
+    if len(duplicated) > 0:
+        raise ValueError(f"{len(duplicated)}건의 상가 레코드가 행정동 폴리곤에 중복 배정됐습니다: {duplicated['fac_id'].tolist()[:5]}")
+    sjoined = sjoined.drop(columns="index_right")
+    sjoined["legal_dong_nm"] = pd.NA
+    return sjoined
+
+
+def build_facilities() -> gpd.GeoDataFrame:
+    """README §5 facilities.parquet 계약: 의료·상가 두 소스를 하나의 [fac_id, fac_type, lon, lat, capacity] 테이블로 합친다."""
+    medical = load_medical_facilities_with_admin_dong()[FACILITIES_COLUMNS]
+    commercial = load_commercial_facilities_with_admin_dong()[FACILITIES_COLUMNS]
+    combined = pd.concat([medical, commercial], ignore_index=True)
+    duplicated = combined[combined["fac_id"].duplicated(keep=False)]
+    if len(duplicated) > 0:
+        raise ValueError(f"두 소스에서 fac_id가 겹칩니다: {duplicated['fac_id'].tolist()[:5]}")
+    return gpd.GeoDataFrame(combined, geometry="geometry", crs=medical.crs)
+
+
+def save_facilities(path: str = FACILITIES_OUTPUT_PATH) -> str:
+    """의료·상가를 합친 시설 테이블을 README §5 facilities.parquet 계약대로 저장한다.
+
+    계약이 요구하는 [fac_id, fac_type, lon, lat, capacity]에 category_large,
+    legal_dong_nm, gu, adm_cd, geometry(EPSG:5179)를 덧붙인 상위 집합이다 —
+    access 레이어가 필요하면 쓰고 아니면 무시할 수 있다.
+    """
+    combined = build_facilities()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    combined.to_parquet(path)
+    return path
 
 
 def build_admin_units() -> gpd.GeoDataFrame:
