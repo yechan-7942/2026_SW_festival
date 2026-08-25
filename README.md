@@ -28,12 +28,12 @@
 |---|---|---|
 | M0. 데이터 해상도 검증 게이트 | 조건부 통과 | `reports/m0_data_audit.md` |
 | M1. 수집·정제 파이프라인 | 완료 — 의료기관·상가정보·인구·행정동 경계 전부 `facilities.parquet`/`admin_units.parquet`로 병합 | `data/processed/facilities.parquet`, `admin_units.parquet`, `adm_code_map.csv`, `legal_dong_to_admin.csv` |
-| M2. 2SFCA 접근성 프로토타입 | 대기 — 경계·인구·의료·생활시설 입력 완료, 2SFCA 로직 미착수. ⚠ "금융" 지수는 상가정보 API에 데이터 없음(`reports/m2_commercial.md`), 별도 소스 필요 | 의료·금융 2종 접근성 지수 |
+| M2. 2SFCA 접근성 프로토타입 | 진행 중 — 2SFCA 로직 구현 완료, "의료" 지수 산출됨. ⚠ "금융" 지수는 상가정보 API에 데이터 없음(`reports/m2_commercial.md`), 별도 소스 필요 | `data/processed/accessibility.parquet`, `reports/m2_two_sfca.md` |
 | M3. 격차 점수 + 가중치 반영 | 대기 | 행정동별 Gap Score |
 | M4. NLP 수요 신호 추출 | 대기 — MDIS 원본 필요 | 결핍 유형 라벨 |
 | M5. LLM 리포트 + 시각화 MVP | 대기 | 히트맵 + 처방 카드 |
 
-M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`, `m2_admin_units.md`, `m2_commercial.md`) 참고. KOSIS/SGIS/data.go.kr API 키가 전부 확보되어 인구·행정동 경계·상가정보까지 파이프라인에 연결됐고, 남은 외부 블로커는 MDIS 로그인뿐이다. 단, 상가정보 API에는 금융업 데이터가 없다는 것이 확인되어(`m2_commercial.md`) 금융 접근성 지수는 별도 소스가 필요하다.
+M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`, `m2_admin_units.md`, `m2_commercial.md`, `m2_two_sfca.md`) 참고. KOSIS/SGIS/data.go.kr API 키가 전부 확보되어 인구·행정동 경계·상가정보까지 파이프라인에 연결됐고, 남은 외부 블로커는 MDIS 로그인뿐이다. 단, 상가정보 API에는 금융업 데이터가 없다는 것이 확인되어(`m2_commercial.md`) 금융 접근성 지수는 별도 소스가 필요하다. 2SFCA 접근성 지수(`m2_two_sfca.md`)는 임계거리에 따라 행정동 순위가 크게 흔들린다는 것도 확인됐다 — 단일 값으로 결론을 내리지 않는다(§7).
 
 > **M0는 차단 게이트다.** 외국인주민현황 데이터가 행정동 단위로 확보되지 않으면 M2 이후의 설계가 통째로 바뀐다. M0를 통과하기 전에는 `src/access/` 이하를 작성하지 않는다.
 

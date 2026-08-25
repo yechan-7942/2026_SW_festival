@@ -1,0 +1,37 @@
+# M2 — 2SFCA 접근성 프로토타입 (`src/access/`)
+
+작성일: 2026-08-25
+근거: README §7 방법론 노트, §5 인터페이스 계약(`accessibility.parquet [adm_cd, fac_type, access_index]`)
+
+## 구현
+
+`src/access/catchment.py`:
+- `load_demand_points()` — `admin_units.parquet`의 행정동 폴리곤 중심점을 수요점 위치로, `pop_total`(전체 인구)을 공급을 두고 경쟁하는 수요로 쓴다. 죽장면처럼 크고 오목한 행정동은 중심점이 실제 인구 밀집지와 어긋날 수 있다 — 프로토타입 단계의 알려진 단순화.
+- `load_supply_points(category_large)` — `facilities.parquet`을 대분류(`category_large`)로 필터링, `capacity`를 공급량으로 쓴다.
+
+`src/access/two_sfca.py`: 표준 2단계 플로팅 catchment area 방법.
+- 1단계 `compute_step1_ratios` — 시설 j의 공급/수요 비율 `R_j = capacity_j / Σ(임계거리 내 pop_total)`.
+- 2단계 `compute_step2_access` — 행정동 i의 접근성 지수 `A_i = Σ(임계거리 내 R_j)`.
+- 거리 계산은 `scipy.spatial.cKDTree`(EPSG:5179, 직선거리) — README §7 "기본 모델은 직선거리로 동작" 그대로.
+- `two_sfca(category_large, threshold_km)` — 한 도메인·한 임계거리의 결과. `fac_type` 컬럼에는 세부 업종이 아니라 `category_large`를 그대로 채운다: M2의 목표 단위가 "의료·금융 2종" 도메인 지수이고, 세부 업종별로 쪼개면 각 catchment 표본이 너무 작아져 비율이 불안정해지기 때문이다.
+- `build_accessibility()` — `config/pipeline.yaml`의 `access.domains` 전부를 `access.default_threshold_km`(=3km, 민감도 분석 세 값의 중앙값)로 돌려 `accessibility.parquet`을 만든다. 공급이 0건인 도메인은 에러 없이 건너뛴다(아래 참고) — README §7 "데이터 확보 실패가 시스템 전체를 멈추지 않게 한다" 설계 원칙을 그대로 따른 것이다.
+
+## ⚠ "금융" 도메인은 현재 계산 불가
+
+`reports/m2_commercial.md`에서 이미 확인된 대로 상가정보 API에는 금융업 레코드가 0건이다. `build_accessibility()`는 이 도메인을 조용히 건너뛰지 않고 표준출력에 건너뛴 이유를 남긴 뒤 계속 진행한다. **현재 `accessibility.parquet`에는 "의료" 한 도메인만 있다.** 금융 접근성 지수는 별도 데이터 소스를 확보한 뒤 `config/pipeline.yaml`의 `access.domains`에 그대로 추가하면 코드 변경 없이 계산된다(파라미터 외부화 설계의 실익).
+
+## 임계 거리 민감도 분석 (README §7)
+
+`distance_sensitivity("보건의료")`로 `distance_thresholds_km: [1, 3, 5]` 전부를 돌려 비교했다.
+
+**결과: 29개 행정동 전부 순위가 최소 한 번은 바뀐다.** 1km 기준 상위 5개 행정동(죽도동·중앙동·상대동·두호동·해도동)과 5km 기준 상위 5개(청림동·죽도동·중앙동·제철동·용흥동)는 겹치는 곳이 **중앙동·죽도동 2곳뿐**이다.
+
+임계거리를 넓힌다고 접근성 지수가 단조 증가하지도 않는다 — 예를 들어 죽도동은 1km 기준 지수가 가장 높지만(0.0142, 1위), 3km(0.0069, 3위)·5km(0.0053, 4위)로 갈수록 오히려 떨어진다. 이는 버그가 아니라 2SFCA의 잘 알려진 특성이다: 임계거리를 넓히면 도달 가능한 시설 수는 늘지만(2단계 분자 증가), 동시에 그 시설들의 1단계 비율(`R_j`)도 catchment 인구가 커지며 낮아진다(분모 증가) — 두 효과가 상쇄되는 방향과 크기는 행정동마다 다르다. `tests/test_two_sfca.py`를 작성하며 "임계거리가 커지면 접근성 지수도 단조 증가할 것"이라는 가정으로 테스트를 짰다가 이 현상 때문에 실패해서 알게 됐다 — 해당 테스트는 잘못된 가정이었으므로 제거했다.
+
+**결론**: 단일 임계값으로 "이 행정동이 의료 접근성이 낮다"고 단정할 수 없다 — README §7이 경고한 그대로다. 이후 M3(격차 점수)에서는 민감도 분석표를 근거로 결과를 제시하거나, 최소한 이 불안정성을 리포트에 명시해야 한다.
+
+## 알려진 한계
+
+- 수요점을 행정동 폴리곤의 기하학적 중심점으로 근사했다 — 인구가중 중심점이 아니다.
+- `capacity`는 두 소스 모두 최소 공급 단위 1로 바닥을 둔 값이라(`datagokr.py`/`commercial.py` 참고) 실제 공급 능력 차이를 반영하지 못한다.
+- "의료" 도메인 안에서도 종합병원과 약국처럼 성격이 다른 시설을 하나의 공급 풀로 합산한다 — 세부 업종별 분리는 표본 크기 문제로 보류했다(위 참고).
