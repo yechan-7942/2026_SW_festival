@@ -13,12 +13,14 @@
 - 1단계 `compute_step1_ratios` — 시설 j의 공급/수요 비율 `R_j = capacity_j / Σ(임계거리 내 pop_total)`.
 - 2단계 `compute_step2_access` — 행정동 i의 접근성 지수 `A_i = Σ(임계거리 내 R_j)`.
 - 거리 계산은 `scipy.spatial.cKDTree`(EPSG:5179, 직선거리) — README §7 "기본 모델은 직선거리로 동작" 그대로.
-- `two_sfca(category_large, threshold_km)` — 한 도메인·한 임계거리의 결과. `fac_type` 컬럼에는 세부 업종이 아니라 `category_large`를 그대로 채운다: M2의 목표 단위가 "의료·금융 2종" 도메인 지수이고, 세부 업종별로 쪼개면 각 catchment 표본이 너무 작아져 비율이 불안정해지기 때문이다.
+- `two_sfca(category_large, threshold_km)` — 한 도메인·한 임계거리의 결과. `fac_type` 컬럼에는 세부 업종이 아니라 `category_large`를 그대로 채운다: 세부 업종별로 쪼개면 각 catchment 표본이 너무 작아져 비율이 불안정해지기 때문이다. (애초 목표는 "의료·금융 2종" 도메인 지수였으나, "금융"은 이후 범위에서 제외됐다 — 아래 참고.)
 - `build_accessibility()` — `config/pipeline.yaml`의 `access.domains` 전부를 `access.default_threshold_km`(=3km, 민감도 분석 세 값의 중앙값)로 돌려 `accessibility.parquet`을 만든다. 공급이 0건인 도메인은 에러 없이 건너뛴다(아래 참고) — README §7 "데이터 확보 실패가 시스템 전체를 멈추지 않게 한다" 설계 원칙을 그대로 따른 것이다.
 
-## ⚠ "금융" 도메인은 현재 계산 불가
+## "금융" 도메인은 범위에서 제외 (2026-08-26 결정)
 
-`reports/m2_commercial.md`에서 이미 확인된 대로 상가정보 API에는 금융업 레코드가 0건이다. `build_accessibility()`는 이 도메인을 조용히 건너뛰지 않고 표준출력에 건너뛴 이유를 남긴 뒤 계속 진행한다. **현재 `accessibility.parquet`에는 "의료" 한 도메인만 있다.** 금융 접근성 지수는 별도 데이터 소스를 확보한 뒤 `config/pipeline.yaml`의 `access.domains`에 그대로 추가하면 코드 변경 없이 계산된다(파라미터 외부화 설계의 실익).
+상가정보 API에는 금융업 레코드가 0건이고(`reports/m2_commercial.md`), 대체 공개 데이터도 찾지 못했다(같은 리포트의 "후속 — 금융 데이터 대체 소스 조사" 참고) — 좌표가 있는 유일한 후보(금융결제원 금융MAP)는 기관 이용계약이 필요해 셀프서비스가 아니고, 그 외 정부 API는 지점 좌표를 제공하지 않는다. 이 세 가지 선택지(범위 제외/기관 계약 시도/수작업 조사) 중 **"의료" 단일 지수로 M2를 진행하기로 결정했다.**
+
+`config/pipeline.yaml`의 `access.domains`에서 `금융` 항목을 제거했다. `build_accessibility()`의 스킵 로직(공급 0건 도메인을 에러 없이 건너뜀)은 코드에 남겨뒀다 — 향후 금융 데이터를 확보하면 `access.domains`에 다시 추가하는 것만으로 코드 변경 없이 계산된다(파라미터 외부화 설계의 실익).
 
 ## 임계 거리 민감도 분석 (README §7)
 
