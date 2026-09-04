@@ -70,7 +70,6 @@ M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_
 ```
 pohang-infra-gap/
 ├── README.md
-├── CLAUDE.md                  # Claude Code용 프로젝트 컨텍스트
 ├── pyproject.toml
 ├── config/
 │   ├── pipeline.yaml          # 대상 행정동, 인프라 종류, 임계 거리 d0
