@@ -28,12 +28,12 @@
 |---|---|---|
 | M0. 데이터 해상도 검증 게이트 | 조건부 통과 | `reports/m0_data_audit.md` |
 | M1. 수집·정제 파이프라인 | 완료 — 의료기관·상가정보·인구·행정동 경계 전부 `facilities.parquet`/`admin_units.parquet`로 병합 | `data/processed/facilities.parquet`, `admin_units.parquet`, `adm_code_map.csv`, `legal_dong_to_admin.csv` |
-| M2. 2SFCA 접근성 프로토타입 | 진행 중 — 2SFCA 로직 구현 완료, "의료" 단일 지수로 범위 확정(2026-08-26, `reports/m2_commercial.md`) | `data/processed/accessibility.parquet`, `reports/m2_two_sfca.md` |
-| M3. 격차 점수 + 가중치 반영 | 대기 | 행정동별 Gap Score |
+| M2. 2SFCA 접근성 프로토타입 | 완료 — 2SFCA 로직 구현, "의료" 단일 지수로 범위 확정(2026-08-26), E2SFCA 비교 검증까지 완료 후 프로덕션은 바닐라 2SFCA 유지 | `data/processed/accessibility.parquet`, `reports/m2_two_sfca.md`, `reports/m2_e2sfca.md` |
+| M3. 격차 점수 + 가중치 반영 | 진행 중 — Gap Score 로직 구현 완료, `config/weights.yaml` 가중치는 GM 검수 대기 | `data/processed/gap_scores.parquet`, `reports/m3_gap_score.md` |
 | M4. NLP 수요 신호 추출 | 대기 — MDIS 원본 필요 | 결핍 유형 라벨 |
 | M5. LLM 리포트 + 시각화 MVP | 대기 | 히트맵 + 처방 카드 |
 
-M0/M1 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`, `m2_admin_units.md`, `m2_commercial.md`, `m2_two_sfca.md`) 참고. KOSIS/SGIS/data.go.kr API 키가 전부 확보되어 인구·행정동 경계·상가정보까지 파이프라인에 연결됐고, 남은 외부 블로커는 MDIS 로그인뿐이다. 상가정보 API에는 금융업 데이터가 없고 대체 소스도 찾지 못해(`m2_commercial.md`), M2는 "금융"을 범위에서 빼고 "의료" 단일 접근성 지수로 진행하기로 결정했다(2026-08-26). 2SFCA 접근성 지수(`m2_two_sfca.md`)는 임계거리에 따라 행정동 순위가 크게 흔들린다는 것도 확인됐다 — 단일 값으로 결론을 내리지 않는다(§7).
+M0~M3 세부 근거는 `reports/`(`m0_data_audit.md`, `m1_adm_code_map.md`, `m1_legal_dong_mapping.md`, `m1_structure_proposal.md`, `m2_admin_units.md`, `m2_commercial.md`, `m2_two_sfca.md`, `m2_e2sfca.md`, `m3_gap_score.md`) 참고. KOSIS/SGIS/data.go.kr API 키가 전부 확보되어 인구·행정동 경계·상가정보까지 파이프라인에 연결됐고, 남은 외부 블로커는 MDIS 로그인뿐이다. 상가정보 API에는 금융업 데이터가 없고 대체 소스도 찾지 못해(`m2_commercial.md`), M2는 "금융"을 범위에서 빼고 "의료" 단일 접근성 지수로 진행하기로 결정했다(2026-08-26). 2SFCA 접근성 지수(`m2_two_sfca.md`)는 임계거리에 따라 행정동 순위가 크게 흔들린다는 것도 확인됐다 — 단일 값으로 결론을 내리지 않는다(§7). E2SFCA(선형 거리감쇠) 비교(`m2_e2sfca.md`)는 임계거리 부근 경계효과는 줄이지만 "1/3/5km 중 뭘 고르냐"는 핵심 문제는 풀지 못해, 프로덕션 `accessibility.parquet`는 바닐라 2SFCA를 유지한다. M3 격차 점수(`m3_gap_score.md`)는 수요(외국인 인구 비율)와 접근성 결핍을 결합한 지수로, 개별 순위는 여전히 임계거리에 따라 흔들리지만 최우선 구간(top 5 중 4곳: 구룡포읍·호미곶면·장기면·대송면)은 임계거리와 무관하게 안정적으로 유지된다. `config/weights.yaml`의 수요/접근성 가중치(현재 0.5/0.5)는 GM 검수 전 잠정값이다.
 
 > **M0는 차단 게이트다.** 외국인주민현황 데이터가 행정동 단위로 확보되지 않으면 M2 이후의 설계가 통째로 바뀐다. M0를 통과하기 전에는 `src/access/` 이하를 작성하지 않는다.
 
