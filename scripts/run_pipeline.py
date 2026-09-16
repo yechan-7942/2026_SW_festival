@@ -10,15 +10,15 @@ from src.ingest import kosis  # noqa: E402
 from src.ingest.datagokr import load_facilities  # noqa: E402
 from src.preprocess import validate  # noqa: E402
 from src.preprocess.admin_join import save_facilities  # noqa: E402
+from src.viz.heatmap import save_figures  # noqa: E402
 
 # 아직 실제 로직이 없는 단계. reports/m1_structure_proposal.md의 블로커에
 # 걸려 있어 그 이유를 그대로 보여준다 — 조용히 건너뛰지 않는다.
 NOT_YET_IMPLEMENTED = {
     "nlp": "MDIS 다문화가족실태조사 원본 확보 전까지 수요 신호 추출 불가",
     "policy": "nlp 단계 출력(결핍 유형)이 있어야 정책 리포트 생성 가능",
-    "viz": "gap 단계 출력(히트맵 입력)은 있지만 시각화 코드가 아직 없음",
 }
-IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap"]
+IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "viz"]
 ALL_STAGES = [*IMPLEMENTED_STAGES, *NOT_YET_IMPLEMENTED.keys()]
 
 
@@ -56,6 +56,12 @@ def run_gap() -> None:
     print(f"  저장: {path}")
 
 
+def run_viz() -> None:
+    print("[viz] 격차 히트맵·랭킹 차트 생성...")
+    for path in save_figures():
+        print(f"  저장: {path}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="포항 외국인 주민 생활 인프라 격차 진단 파이프라인")
     parser.add_argument("--config", default="config/pipeline.yaml")
@@ -76,6 +82,8 @@ def main() -> None:
             run_access()
         elif stage == "gap":
             run_gap()
+        elif stage == "viz":
+            run_viz()
         else:
             print(f"미구현: {NOT_YET_IMPLEMENTED[stage]}")
 
