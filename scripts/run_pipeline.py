@@ -12,7 +12,7 @@ from src.preprocess import validate  # noqa: E402
 from src.preprocess.admin_join import save_facilities  # noqa: E402
 from src.viz.heatmap import save_figures  # noqa: E402
 
-# 아직 실제 로직이 없는 단계. reports/m1_structure_proposal.md의 블로커에
+# 아직 실제 로직이 없는 단계. reports/m0_m1_data_pipeline.md 2부가 정리한 블로커에
 # 걸려 있어 그 이유를 그대로 보여준다 — 조용히 건너뛰지 않는다.
 NOT_YET_IMPLEMENTED = {
     "nlp": "MDIS 다문화가족실태조사 원본 확보 전까지 수요 신호 추출 불가",

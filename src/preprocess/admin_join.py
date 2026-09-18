@@ -62,8 +62,8 @@ def load_current_admin_units() -> pd.DataFrame:
 def join_facilities_to_admin_dong() -> pd.DataFrame:
     """1차 조인: 법정동 이름 매칭으로 심평원 시설 레코드에 행정동 코드를 붙인다.
 
-    2차 검증(좌표 point-in-polygon 교차 확인, reports/m1_structure_proposal.md
-    3번 항목)은 SGIS 행정동 경계 파일이 아직 없어 미구현 상태다. 이 함수의
+    2차 검증(좌표 point-in-polygon 교차 확인, reports/m0_m1_data_pipeline.md
+    2부 항목 3)은 SGIS 행정동 경계 파일이 아직 없어 미구현 상태다. 이 함수의
     결과는 그때까지 이름 매칭만으로 얻은 잠정 결과로 취급해야 한다.
     """
     facilities = load_pohang_facilities()
@@ -117,7 +117,7 @@ def validate_point_in_polygon(joined: pd.DataFrame) -> pd.DataFrame:
     행정동 폴리곤과 일치하는지 point-in-polygon으로 교차검증한다.
 
     일치 여부만 판정하고 파이프라인을 중단시키지는 않는다 — 법정동/행정동
-    괴리(reports/m1_legal_dong_mapping.md)처럼 실제 데이터 특성일 수 있어
+    괴리(reports/m0_m1_data_pipeline.md 4부)처럼 실제 데이터 특성일 수 있어
     호출부가 결과를 보고 판단하게 한다. 반환값은 불일치 레코드만 담은
     DataFrame이며, 비어 있으면 전부 일치한다는 뜻이다.
     """

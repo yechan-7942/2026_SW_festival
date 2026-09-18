@@ -2,7 +2,7 @@
 
 작성일: 2026-08-24
 작성자: Claude Code
-근거: `reports/m1_structure_proposal.md` 블로커 3 (상가정보 API 키 확보 후 ingest 코드 작성)
+근거: `reports/m0_m1_data_pipeline.md` 2부 블로커 3 (상가정보 API 키 확보 후 ingest 코드 작성)
 
 ## 배경
 

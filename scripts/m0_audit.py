@@ -12,14 +12,14 @@ from src.ingest.kosis import fetch_population  # noqa: E402
 # 정성적 판단이 필요해 코드로 재현할 수 없는 M0 항목. 이미 사람이 조사해
 # reports/에 근거와 함께 남겨뒀으니 여기서는 그 문서를 가리키기만 한다.
 QUALITATIVE_CHECKS = {
-    "MDIS 설문 응답 형식 (객관식/주관식)": "reports/m0_data_audit.md 3번 항목 — 원본 조사표 미확보로 미확정",
-    "SGIS 경계 파일과의 행정동 코드 대조": "reports/m1_adm_code_map.md — SGIS 키 없어 KOSIS 코드 체계 내부 정합만 확인함",
+    "MDIS 설문 응답 형식 (객관식/주관식)": "reports/m0_m1_data_pipeline.md 1부 항목 3 — 원본 조사표 미확보로 미확정",
+    "SGIS 경계 파일과의 행정동 코드 대조": "reports/m0_m1_data_pipeline.md 3부 — 이후 M2에서 완전히 해결됨(reports/m2_admin_units.md)",
 }
 
 
 def check_target_dong_count(config: dict) -> bool:
     n = len(config["target_admin_units"])
-    print(f"[M0-2] config의 대상 행정동 수: {n}개 (기대값 29 — reports/m1_adm_code_map.md)")
+    print(f"[M0-2] config의 대상 행정동 수: {n}개 (기대값 29 — reports/m0_m1_data_pipeline.md 3부)")
     return n == 29
 
 
@@ -48,7 +48,7 @@ def check_kosis_dong_level(config: dict):
         print(f"[M0-1] KOSIS {sample_unit['adm_nm']} 읍면동 단위 조회: 성공")
         return True
     except ValueError:
-        print("[M0-1] KOSIS_API_KEY 없음 — 재확인 건너뜀 (reports/m0_data_audit.md 기존 감사로 대체)")
+        print("[M0-1] KOSIS_API_KEY 없음 — 재확인 건너뜀 (reports/m0_m1_data_pipeline.md 1부 기존 감사로 대체)")
         return None
     except Exception as e:
         print(f"[M0-1] KOSIS 조회 실패: {e}")
@@ -63,7 +63,7 @@ def main() -> None:
     with open(args.config, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
-    print("M0는 reports/m0_data_audit.md에서 이미 조건부 통과 판정을 받았다.")
+    print("M0는 reports/m0_m1_data_pipeline.md 1부에서 이미 조건부 통과 판정을 받았다.")
     print("이 스크립트는 그중 코드로 재확인 가능한 항목만 스모크테스트한다.\n")
 
     results = {

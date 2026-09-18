@@ -43,5 +43,5 @@ def test_validate_point_in_polygon_mismatch_rate_is_low():
     joined = join_facilities_to_admin_dong()
     mismatched = validate_point_in_polygon(joined)
     # 법정동 이름 매칭과 실제 좌표 기반 행정동이 다른 사례가 소수 존재할 수 있음
-    # (reports/m1_legal_dong_mapping.md) — 전체 대비 비율이 낮은지만 확인한다.
+    # (reports/m0_m1_data_pipeline.md 4부) — 전체 대비 비율이 낮은지만 확인한다.
     assert len(mismatched) / len(joined) < 0.05

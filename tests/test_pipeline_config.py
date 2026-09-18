@@ -8,7 +8,7 @@ def _load_config():
 
 def test_target_admin_units_count_matches_current_dong_count():
     config = _load_config()
-    # reports/m1_adm_code_map.md: 포항시 현재 유효 읍면동은 29개.
+    # reports/m0_m1_data_pipeline.md 3부: 포항시 현재 유효 읍면동은 29개.
     assert len(config["target_admin_units"]) == 29
 
 
