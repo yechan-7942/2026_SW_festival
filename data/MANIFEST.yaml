@@ -144,8 +144,21 @@ files:
 # 각 API의 파라미터·응답 구조·발견 사항은 src/ingest/{kosis,sgis,commercial}.py와
 # reports/(m2_admin_units.md, m2_commercial.md)에 기록되어 있다.
 #
-# 아직 확보되지 않은 데이터 (README §3 표 대비 ⬜ 상태):
-#   - 전국다문화가족실태조사 원자료 (MDIS) — 원격접근서비스(비용 발생, 로컬 다운로드 불가)라 포기.
-#     대신 여가부 공개 결과보고서(2차자료, 전국/광역 단위 집계)로 대체하기로 결정했으나,
-#     원문 PDF 자체를 아직 확보 못 함 — 정부 사이트 다운로드 링크가 JS로 가려져 있어
-#     수동 다운로드 필요. 자세한 경위는 reports/m4_nlp_substitute.md 참고.
+  - path: "data/raw/2024년 전국다문화가족실태조사/[용역] 2024년 전국다문화가족실태조사 연구 - 여성가족부(최윤정).pdf"
+    publisher: 여성가족부 (연구수행: 한국여성정책연구원)
+    source_url: https://www.mogef.go.kr/mp/pcd/mp_pcd_s001d.do?mid=plc503&bbtSn=705039
+    downloaded_at: "2026-09-21"
+    size_bytes: 16072074
+    sha256: c7db854985a38ee52f7cdaa5ec5d340afdb7d83beec23b9b99e03b83eb71a645
+    used_by: []
+    note: >
+      MDIS 원자료 대신 쓰는 2차자료(집계 보고서). 전국 단위 통계만 있고 행정동·시도
+      단위 분해가 없다 — 연구진이 부록에서 "시도별 RSE값이 불안정해 시도별 분석은
+      시도하지 않았다"고 직접 명시함(914쪽 중 부표 4-2 인근). 즉 포항 전용 수치를
+      만드는 건 이 자료로는 원천적으로 불가능하고, 전국 집계치를 배경 근거로만 쓸 수
+      있다. 실제 사용 가능한 수치와 활용 방향은 reports/m4_nlp_substitute.md 참고.
+
+# 아직 확보되지 않은 데이터 (README §3 표 대비 ⬜ 상태): 없음 —
+#   전국다문화가족실태조사 원자료(MDIS)는 원격접근서비스(비용 발생, 로컬 다운로드
+#   불가)라 포기하고, 위 결과보고서(2차자료)로 대체했다. 경위는
+#   reports/m4_nlp_substitute.md 참고.
