@@ -67,19 +67,18 @@ pohang-infra-gap/
 │   ├── interim/
 │   └── processed/
 ├── src/
-│   ├── ingest/      # 수집 — 컴공
-│   ├── preprocess/  # 정제 — 컴공
-│   ├── access/      # 2SFCA — AI융합
-│   ├── gap/         # 격차 점수 — AI융합
-│   ├── nlp/         # 수요 신호 — AI융합
-│   ├── policy/      # LLM 리포트 — AI융합
+│   ├── ingest/      
+│   ├── preprocess/ 
+│   ├── access/      # 2SFCA 
+│   ├── gap/         # 격차 점수
+│   ├── nlp/         # 수요 신호 
+│   ├── policy/      # LLM 리포트 
 │   └── viz/         # 히트맵
 ├── scripts/      # run_pipeline.py 등
 ├── outputs/      # 결과물
 └── tests/
 ```
 
-`src/` 밑 폴더 구분이 대충 팀 역할 구분이랑 같다. 서로 폴더 안 건드리고 정해둔 데이터 포맷(parquet)으로만 주고받는다.
 
 ---
 
@@ -101,9 +100,9 @@ python scripts/run_pipeline.py --stage access                # 특정 단계만
 
 | 담당 | 전공 |
 |---|---|
-| 데이터 파이프라인, 공간데이터, 시각화 | 컴퓨터공학심화 |
-| 2SFCA, NLP, LLM, 정책 분류 | AI융합 |
-| 문제 정의, 가중치 설계, 정책 타당성 검증 | 글로벌매니지먼트 |
+| 데이터 파이프라인, 공간데이터, 시각화 | 황예찬|
+| 2SFCA, NLP, LLM, 정책 분류 | 황예찬|
+| 문제 정의, 가중치 설계, 정책 타당성 검증 | 최서진 |
 
 ---
 
