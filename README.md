@@ -90,7 +90,7 @@ python scripts/run_pipeline.py --stage all                   # 전체 실행
 python scripts/run_pipeline.py --stage access                # 특정 단계만
 ```
 
-의존성: `geopandas`, `shapely`, `pyproj`, `pandas`, `plotly`, `anthropic` 정도.
+의존성: `geopandas`, `shapely`, `pyproj`, `pandas`, `plotly`, `openai`(NVIDIA build 호출용) 정도.
 
 ---
 
