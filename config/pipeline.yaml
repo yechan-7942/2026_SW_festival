@@ -26,6 +26,31 @@ access:
     - category_large: 보건의료
       fac_type_label: 의료
 
+llm:
+  # M5 정책 리포트(src/policy/report.py)에 쓰는 모델. NVIDIA build(NIM API
+  # 카탈로그, OpenAI 호환)를 쓴다 — Claude API는 종량제 결제가 필요해서(README
+  # 메모 참고) 팀 예산으로는 부담이었고, NVIDIA build는 무료 크레딧으로 시작
+  # 가능하다. base_url이 openai가 아니라 이쪽을 가리키는 이유이기도 하다.
+  #
+  # 카탈로그(/v1/models)에 있다고 실제 호출이 되는 건 아니다 — 계정별로 일부
+  # 모델만 활성화돼 있다. 직접 확인한 결과 이 계정에서 실제로 호출 가능했던
+  # 건 아래 모델 하나뿐(gemma-3-12b-it, llama-3.1-nemotron-70b-instruct,
+  # nemotron-4-340b-instruct는 전부 404 "Not found for account").
+  base_url: https://integrate.api.nvidia.com/v1
+  model: nvidia/nemotron-3-super-120b-a12b
+  # nemotron-3-super는 추론모델이라 답변 전에 내부적으로 생각(reasoning)을
+  # 하는데, 토큰 예산이 부족하면 생각만 하다 끝나서(finish_reason=length)
+  # 실제 답변이 안 나온다. 직접 테스트해보니 짧은 2문장 답변에도 reasoning
+  # 포함 약 580 completion 토큰이 들었다 — 1500이면 여유 있음.
+  max_tokens: 1500
+  temperature: 0.3
+  # 이 system 메시지가 없으면 reasoning 과정이 content 필드에 그대로 새어
+  # 나온다(영어 서술문으로, 그리고 실제 데이터에 없는 수치를 예시로 지어내는
+  # 것도 목격함). 이걸 넣으면 reasoning은 별도 reasoning_content 필드로
+  # 분리되고 content엔 최종 답변만 깔끔하게 남는다 — 근거 수치를 지어내지
+  # 않는다는 README 원칙(§1 메모)을 지키기 위한 최소 가드레일.
+  system_prompt: "detailed thinking off"
+
 infra_types:
   - id: medical
     label: 의료기관
