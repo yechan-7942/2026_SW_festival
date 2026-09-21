@@ -44,14 +44,18 @@ README 메모에 있듯 처음엔 Claude API(`anthropic` 패키지, `pyproject.t
 
 ## 구조
 
-- `src/policy/context.py` — M4 대체 데이터(여가부 결과보고서 전국 수치)를 상수로 갖고 있다가 `build_context_block(fac_type)`로 프롬프트에 붙일 텍스트를 만든다. "전국 집계치, 포항 전용 아님" caveat을 텍스트 안에 강제로 포함시켜, LLM이 이 수치를 포항 고유값처럼 서술하지 않게 한다.
+- `src/policy/context.py` — M4 대체 데이터(여가부 전국 + 경상북도 1권역 결과보고서, `reports/m4_nlp_substitute.md` 참고)를 상수로 갖고 있다가 `build_context_block(fac_type)`로 프롬프트에 붙일 텍스트를 만든다. 경북 데이터를 "배경 근거 1"로 먼저, 전국 데이터를 "배경 근거 2"로 뒤에 붙여 더 가까운 지리적 근거를 우선시하되, 각 수치가 어느 조사 출처인지 라벨을 명확히 남긴다. "포항 단독 수치 아님" caveat도 텍스트 안에 강제로 포함시켜, LLM이 이 수치를 포항 고유값처럼 서술하지 않게 한다.
 - `src/policy/report.py` — `build_prompt()`가 context 블록 + 행정동의 gap_score/rank를 합쳐 프롬프트를 만들고, `generate_policy_card()`가 NVIDIA build API를 호출해 카드 1건을 만든다. `build_policy_cards()`는 `ThreadPoolExecutor(max_workers=6)`로 29개 행정동을 병렬 생성한다(순차로 하면 호출당 ~10초라 5분 가까이 걸림 — 병렬로 94초).
 
 ## 실행 결과 (2026-09-21, `data/processed/policy_cards.parquet`)
 
-`uv run python scripts/run_pipeline.py --stage policy` — 29개 행정동 전부 성공, `[근거]` 줄 누락 0건, 94초 소요.
+`uv run python scripts/run_pipeline.py --stage policy` — 29개 행정동 전부 성공, `[근거]` 줄 누락 0건, 한자 혼입 0건.
 
-가드레일 보강(위 "가드레일" 절) 전 첫 실행에서는 사람 검수로 송도동 reasoning 누출 1건, 여러 실행에 걸쳐 한자 혼입 5건을 발견했다. 보강 후 재실행한 최종 산출물은 두 결함 모두 0건이다.
+가드레일 보강(위 "가드레일" 절) 전 첫 실행에서는 사람 검수로 송도동 reasoning 누출 1건, 여러 실행에 걸쳐 한자 혼입 5건을 발견했다. 이후 경북 데이터를 추가해 프롬프트가 길어진 재실행에서는 **29개를 동시에 병렬 호출하니 NVIDIA build free-tier에서 503(Service Unavailable, 과부하) 에러도 실제로 났다** — `generate_policy_card()`에 API 호출 자체도 재시도 대상으로 포함시켰다(지수 백오프).
+
+### ⚠ 자기 진단 실수 — `| tail -N` 파이프가 진짜 종료 코드를 가렸다
+
+503 대응 코드를 넣고 재실행했을 때 `uv run python scripts/run_pipeline.py --stage policy 2>&1 | tail -10`로 돌렸는데, 스크립트가 재시도를 다 소진하고 실제로는 `ValueError`로 죽었다. 그런데 **셸이 보고하는 종료 코드는 파이프의 마지막 명령(`tail`)의 것**이라 `tail`은 정상 종료(0)했고, 그래서 "exit code 0 = 성공"으로 잘못 판단했다. 파일도 재생성 안 된 채(이전 성공본 그대로) 남아 있었는데, "행 수 29·근거 누락 0·한자 0"이라는 검증도 전부 통과해서 겉보기엔 멀쩡해 보였다 — 실은 그냥 예전 결과였을 뿐이다. `cmp`로 파일이 이전 커밋과 완전히 동일한 바이트인 걸 발견하고서야 알아챘다. 파이프 없이 직접 실행하고 `$?`를 확인해서 재현·수정했다. **교훈: 셸 파이프 뒤에 붙는 `| tail`/`| head` 등은 원본 명령의 실패를 숨긴다 — 성공 여부가 중요한 명령은 파이프 없이 돌리거나 `pipefail`을 켤 것.**
 
 ## 남은 일
 

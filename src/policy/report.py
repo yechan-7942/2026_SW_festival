@@ -1,10 +1,11 @@
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 import yaml
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import APIStatusError, APITimeoutError, OpenAI
 
 from src.policy.context import build_context_block
 
@@ -100,16 +101,25 @@ def generate_policy_card(
     client = _client(llm_config)
 
     last_error = None
-    for _attempt in range(retries + 1):
-        response = client.chat.completions.create(
-            model=llm_config["model"],
-            messages=[
-                {"role": "system", "content": llm_config["system_prompt"]},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=llm_config["max_tokens"],
-            temperature=llm_config["temperature"],
-        )
+    content = ""
+    for attempt in range(retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=llm_config["model"],
+                messages=[
+                    {"role": "system", "content": llm_config["system_prompt"]},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=llm_config["max_tokens"],
+                temperature=llm_config["temperature"],
+            )
+        except (APIStatusError, APITimeoutError) as e:
+            # 29개를 동시에 병렬 호출하면 free-tier에서 503(과부하)이 드물지 않게 난다
+            # — 실제로 겪음. 콘텐츠 품질 문제와 똑같이 재시도 대상으로 취급한다.
+            last_error = f"API 오류: {e}"
+            time.sleep(2 * (attempt + 1))
+            continue
+
         choice = response.choices[0]
         content = choice.message.content.strip()
         hangul_ratio = _hangul_ratio(content)
