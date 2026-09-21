@@ -21,6 +21,25 @@ DEFAULT_CONFIG_PATH = "config/pipeline.yaml"
 # 나중에 금융 등 도메인이 늘면 config에서 access.domains를 읽어 만들도록 바꿔야 한다.
 FAC_TYPE_LABELS = {"보건의료": "의료"}
 
+# content에서 한글이 이 비율 미만이면 정상 답변이 아니라 reasoning 누출로 간주한다.
+# 정상 답변도 "[근거] 4.1%" 같은 숫자·영문 약어가 섞이니 0을 요구하진 않되, 낮게 잡는다.
+MIN_HANGUL_RATIO = 0.3
+
+# 실제로 여러 카드(호미곶면·중앙동·대송면·죽장면·두호동, 29개 중 서로 다른 실행에서
+# 반복 관측)에서 모델이 "설치" 대신 한자 "設置"를 그대로 냈다. hangul_ratio 가드레일은
+# 단어 하나짜리 혼입엔 거의 반응하지 않아 못 잡는다. 정확히 이 문자열로만 반복 관측된
+# 결함이라 좁게 치환한다 — 범용 한자→한글 변환기를 만들면 정상적인 한자어(고유명사
+# 등)까지 건드릴 위험이 있어 일부러 안 만든다.
+KNOWN_HANJA_LEAKS = {"設置": "설치"}
+
+
+def _hangul_ratio(text: str) -> float:
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return 0.0
+    hangul = sum(1 for c in letters if "가" <= c <= "힣")
+    return hangul / len(letters)
+
 
 def load_llm_config(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
     with open(config_path, encoding="utf-8") as f:
@@ -57,36 +76,62 @@ def generate_policy_card(
     gap_score: float,
     fac_type_label: str = "의료",
     config_path: str = DEFAULT_CONFIG_PATH,
+    retries: int = 2,
 ) -> dict:
     """행정동 하나의 정책 카드를 생성한다.
 
-    응답에 "[근거]" 줄이 없으면 바로 버린다(ValueError) — 근거 없이 생성된 카드를
-    그대로 통과시키지 않기 위한 최소 가드레일이다. 완벽한 검증은 아니다: 모델이
-    "[근거]" 줄을 넣긴 했는데 그 안의 수치가 배경 근거와 다르게 미묘히 바뀌어 있을
-    가능성까지는 코드로 못 잡는다 — 사람 검수가 필요하다(README §1 메모 참고).
+    "detailed thinking off"을 줘도 가끔 reasoning이 content 필드로 그대로 새어나온다
+    (실제로 29개 중 1개 — 송도동 — 에서 목격: "We need to propose..."로 시작하는 영어
+    사고 과정이 문장 중간에 끊긴 채 저장됨. finish_reason도 "length"였다). "[근거]"
+    문자열 포함 여부만 보는 건 부실한 가드레일이었다 — 그 사고 과정 안에 우연히
+    "[근거]"라는 단어가 들어 있으면 통과해버리기 때문이다. 그래서 두 가지를 더 본다:
+    (1) finish_reason이 "stop"인지(끝까지 완성됐는지), (2) content의 한글 비율이
+    최소한은 되는지(reasoning 누출은 거의 다 영어라 한글 비율이 낮다). 그래도 실패하면
+    retries만큼 재시도하고, 다 실패하면 ValueError로 버린다.
+
+    hangul_ratio는 문장 전체가 새는 치명적인 경우만 잡는다 — 단어 하나짜리 한자 혼입
+    (KNOWN_HANJA_LEAKS 참고)은 비율에 거의 영향이 없어 못 잡으므로 성공 시 별도로
+    치환한다. 그래도 완벽한 검증은 아니다: 모델이 "[근거]" 줄을 넣긴 했는데 그 안의
+    수치가 배경 근거와 다르게 미묘히 바뀌어 있을 가능성까지는 코드로 못 잡는다 —
+    사람 검수가 필요하다(README §1 메모 참고).
     """
     llm_config = load_llm_config(config_path)
     prompt = build_prompt(adm_nm, rank, gap_score, fac_type_label)
-    response = _client(llm_config).chat.completions.create(
-        model=llm_config["model"],
-        messages=[
-            {"role": "system", "content": llm_config["system_prompt"]},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=llm_config["max_tokens"],
-        temperature=llm_config["temperature"],
-    )
-    content = response.choices[0].message.content.strip()
-    if "[근거]" not in content:
-        raise ValueError(f"{adm_nm}: 응답에 '[근거]' 줄이 없어 버림.\n{content}")
+    client = _client(llm_config)
 
-    return {
-        "adm_nm": adm_nm,
-        "rank": rank,
-        "gap_score": gap_score,
-        "fac_type_label": fac_type_label,
-        "policy_text": content,
-    }
+    last_error = None
+    for _attempt in range(retries + 1):
+        response = client.chat.completions.create(
+            model=llm_config["model"],
+            messages=[
+                {"role": "system", "content": llm_config["system_prompt"]},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=llm_config["max_tokens"],
+            temperature=llm_config["temperature"],
+        )
+        choice = response.choices[0]
+        content = choice.message.content.strip()
+        hangul_ratio = _hangul_ratio(content)
+
+        if choice.finish_reason != "stop":
+            last_error = f"finish_reason={choice.finish_reason!r} (응답이 완성되지 않음)"
+        elif "[근거]" not in content:
+            last_error = "'[근거]' 줄이 없음"
+        elif hangul_ratio < MIN_HANGUL_RATIO:
+            last_error = f"한글 비율이 너무 낮음({hangul_ratio:.0%}) — reasoning 누출 의심"
+        else:
+            for hanja, hangul in KNOWN_HANJA_LEAKS.items():
+                content = content.replace(hanja, hangul)
+            return {
+                "adm_nm": adm_nm,
+                "rank": rank,
+                "gap_score": gap_score,
+                "fac_type_label": fac_type_label,
+                "policy_text": content,
+            }
+
+    raise ValueError(f"{adm_nm}: {retries + 1}번 시도 모두 실패 — {last_error}\n마지막 응답:\n{content}")
 
 
 def build_policy_cards(
