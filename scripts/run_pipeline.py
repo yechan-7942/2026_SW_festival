@@ -11,6 +11,7 @@ from src.ingest.datagokr import load_facilities  # noqa: E402
 from src.policy.report import save_policy_cards  # noqa: E402
 from src.preprocess import validate  # noqa: E402
 from src.preprocess.admin_join import save_facilities  # noqa: E402
+from src.viz.dashboard import save_dashboard  # noqa: E402
 from src.viz.heatmap import save_figures  # noqa: E402
 
 # 아직 실제 로직이 없는 단계. reports/m0_m1_data_pipeline.md 2부가 정리한 블로커에
@@ -70,6 +71,10 @@ def run_viz() -> None:
     print("[viz] 격차 히트맵·랭킹 차트 생성...")
     for path in save_figures():
         print(f"  저장: {path}")
+
+    print("[viz] 통합 대시보드 생성 (히트맵+랭킹+정책카드, policy 스테이지 결과 필요)...")
+    path = save_dashboard()
+    print(f"  저장: {path}")
 
 
 def main() -> None:
