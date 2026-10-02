@@ -1,4 +1,4 @@
-"""reports/research_report.md → reports/research_report.pdf 변환.
+"""마크다운 보고서 → PDF 변환 (기본: reports/research_report.md, 분석 보고서는 run_pipeline --stage report가 호출).
 
 pandoc+LaTeX 대신 헤드리스 Chrome을 쓴다 — 한글(CJK) 렌더링을 위해 MacTeX
 전체(수 GB)를 설치할 필요 없이, macOS에 이미 있는 Chrome과 시스템 폰트
@@ -6,6 +6,7 @@ pandoc+LaTeX 대신 헤드리스 Chrome을 쓴다 — 한글(CJK) 렌더링을 �
 """
 
 import base64
+import re
 import shutil
 import subprocess
 import sys
@@ -16,7 +17,6 @@ import markdown
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MD_PATH = REPO_ROOT / "reports/research_report.md"
 PDF_PATH = REPO_ROOT / "reports/research_report.pdf"
-FIGURE_DIR = REPO_ROOT / "outputs/figures"
 
 CHROME_CANDIDATES = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -58,29 +58,33 @@ def find_chrome() -> str:
     raise RuntimeError("Chrome/Chromium을 찾지 못했습니다 — PDF 변환에 필요합니다 (macOS: Google Chrome 설치).")
 
 
-def embed_figures(html_body: str) -> str:
-    """마크다운의 상대경로 이미지(../outputs/figures/*.png)를 base64로 인라인 삽입."""
-    for img_path in FIGURE_DIR.glob("*.png"):
-        rel = f"../outputs/figures/{img_path.name}"
+def embed_figures(html_body: str, base_dir: Path) -> str:
+    """마크다운의 상대경로 PNG 이미지를 base64로 인라인 삽입. 경로는 마크다운 파일 기준으로 푼다."""
+
+    def _inline(match: re.Match) -> str:
+        img_path = (base_dir / match.group(1)).resolve()
+        if not img_path.exists():
+            return match.group(0)
         data = base64.b64encode(img_path.read_bytes()).decode("ascii")
-        html_body = html_body.replace(f'src="{rel}"', f'src="data:image/png;base64,{data}"')
-    return html_body
+        return f'src="data:image/png;base64,{data}"'
+
+    return re.sub(r'src="([^":]+\.png)"', _inline, html_body)
 
 
-def build_html() -> str:
-    md_text = MD_PATH.read_text(encoding="utf-8")
-    body = embed_figures(markdown.markdown(md_text, extensions=["tables", "sane_lists"]))
+def build_html(md_path: Path = MD_PATH) -> str:
+    md_text = md_path.read_text(encoding="utf-8")
+    body = embed_figures(markdown.markdown(md_text, extensions=["tables", "sane_lists"]), md_path.parent)
     return f"""<!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><title>연구보고서</title><style>{CSS}</style></head>
+<head><meta charset="utf-8"><title>{md_path.stem}</title><style>{CSS}</style></head>
 <body>{body}</body>
 </html>"""
 
 
-def render(pdf_path: Path = PDF_PATH) -> Path:
+def render(md_path: Path = MD_PATH, pdf_path: Path = PDF_PATH) -> Path:
     chrome = find_chrome()
     html_path = pdf_path.with_suffix(".html")
-    html_path.write_text(build_html(), encoding="utf-8")
+    html_path.write_text(build_html(md_path), encoding="utf-8")
 
     subprocess.run(
         [

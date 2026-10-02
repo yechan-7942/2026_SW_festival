@@ -26,8 +26,9 @@
 | M1. 수집·정제 파이프라인 | 완료 |
 | M2. 2SFCA 접근성 프로토타입 | 완료 (의료 단일 지수로 확정) |
 | M3. 격차 점수 | 완료 (가중치 0.5/0.5로 GM 검수·확정, 2026-09-22) |
-| M4. NLP 수요 신호 추출 | 대기 — MDIS 포기, 공개 결과보고서(전국 단위)로 대체 확보 완료. 이걸로 뭘 만들지는 설계 중 |
+| M4. NLP 수요 신호 추출 | 대체 완료 — MDIS 포기, 경상북도(포항 속한 1권역)·여가부(전국) 결과보고서 수치를 LLM 정책 카드의 배경 근거로 주입(`reports/m4_nlp_substitute.md`). 행정동별 차등 신호는 아님 |
 | M5. 시각화 + LLM 리포트 | 완료 — 히트맵·랭킹·29개 정책 카드를 `outputs/dashboard.html` 통합 대시보드 하나로 묶음(`reports/m5_policy_llm.md`). 카드 내용은 사람 검수 권장 |
+| LLM 분석 보고서 | 완료 — `--stage report`가 파이프라인 산출물로 `outputs/analysis_report.md/.pdf`를 자동 생성. 본문만 LLM이 쓰고, 수치·구 소속은 코드로 대조, 사실 주장은 LLM으로 재대조, 남은 지적은 "검수 필요" 상자로 표시. 표·지도는 코드 생성 |
 
 몇 가지 결정한 것들:
 - 상가정보 API에 금융업 데이터가 없어서 M2는 "의료" 단일 지수로만 간다 (2026-08-26)
@@ -86,9 +87,10 @@ pohang-infra-gap/
 ```bash
 uv sync                                              # 환경 설치
 
-python scripts/m0_audit.py --config config/pipeline.yaml     # 데이터 확인
-python scripts/run_pipeline.py --stage all                   # 전체 실행
-python scripts/run_pipeline.py --stage access                # 특정 단계만
+uv run python scripts/m0_audit.py --config config/pipeline.yaml     # 데이터 확인
+uv run python scripts/run_pipeline.py --stage all                   # 전체 실행 (정책 카드 29개도 API로 재생성·덮어씀)
+uv run python scripts/run_pipeline.py --stage access                # 특정 단계만
+uv run python scripts/run_pipeline.py --stage report                # LLM 분석 보고서 (outputs/analysis_report.pdf)
 ```
 
 의존성: `geopandas`, `shapely`, `pyproj`, `pandas`, `plotly`, `openai`(NVIDIA build 호출용) 정도.

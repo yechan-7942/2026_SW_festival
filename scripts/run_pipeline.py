@@ -8,6 +8,7 @@ from src.access.two_sfca import save_accessibility  # noqa: E402
 from src.gap.score import save_gap_scores  # noqa: E402
 from src.ingest import kosis  # noqa: E402
 from src.ingest.datagokr import load_facilities  # noqa: E402
+from src.policy.analysis_report import save_analysis_report  # noqa: E402
 from src.policy.report import save_policy_cards  # noqa: E402
 from src.preprocess import validate  # noqa: E402
 from src.preprocess.admin_join import save_facilities  # noqa: E402
@@ -23,7 +24,7 @@ from src.viz.heatmap import save_figures  # noqa: E402
 NOT_YET_IMPLEMENTED = {
     "nlp": "MDIS 다문화가족실태조사 원본 확보 전까지 수요 신호 추출 불가 — reports/m4_nlp_substitute.md",
 }
-IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "policy", "viz"]
+IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "policy", "viz", "report"]
 ALL_STAGES = [*IMPLEMENTED_STAGES, *NOT_YET_IMPLEMENTED.keys()]
 
 
@@ -77,6 +78,18 @@ def run_viz() -> None:
     print(f"  저장: {path}")
 
 
+def run_report() -> None:
+    from render_report import render
+
+    print("[report] LLM 분석 보고서 생성 (본문 LLM 서술 + 수치 대조 가드레일, NVIDIA build API 호출)...")
+    md_path = Path(save_analysis_report())
+    print(f"  저장: {md_path}")
+    try:
+        print(f"  저장: {render(md_path.resolve(), md_path.resolve().with_suffix('.pdf'))}")
+    except RuntimeError as e:
+        print(f"  PDF 건너뜀 — {e}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="포항 외국인 주민 생활 인프라 격차 진단 파이프라인")
     parser.add_argument("--config", default="config/pipeline.yaml")
@@ -101,6 +114,8 @@ def main() -> None:
             run_policy()
         elif stage == "viz":
             run_viz()
+        elif stage == "report":
+            run_report()
         else:
             print(f"미구현: {NOT_YET_IMPLEMENTED[stage]}")
 
