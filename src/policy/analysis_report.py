@@ -264,7 +264,7 @@ def build_verify_prompt(fact_sheet: str, body: str) -> str:
     )
 
 
-def verify_report_body(client, llm_config: dict, fact_sheet: str, body: str) -> list[dict]:
+def verify_report_body(client, llm_config: dict, fact_sheet: str, body: str, verify_retries: int = 2) -> list[dict]:
     """두 번째 LLM 호출로 본문의 사실 주장을 사실 시트와 대조한다.
 
     숫자 대조(find_unverified_numbers)는 "숫자가 입력에 있었는가"만 본다 — 첫 실행의
@@ -273,16 +273,27 @@ def verify_report_body(client, llm_config: dict, fact_sheet: str, body: str) -> 
     잘못 짚는 것도 있다(실측: 위 오류는 잡았고 일부는 놓침) — 사람 검수를 대체하지 않는다.
     응답 파싱에 실패하면 "검증 불가"를 문제 하나로 돌려줘 조용히 통과시키지 않는다.
     """
-    response = client.chat.completions.create(
-        model=llm_config["model"],
-        messages=[
-            {"role": "system", "content": llm_config["system_prompt"]},
-            {"role": "user", "content": build_verify_prompt(fact_sheet, body)},
-        ],
-        max_tokens=llm_config["report_max_tokens"],
-        temperature=0,
-    )
-    content = (response.choices[0].message.content or "").strip()
+    # 추론모델이라 토큰을 reasoning에 다 쓰고 content를 비운 채 finish_reason=length로 끝나는
+    # 일이 실측에서 3번 중 2번이었다 — 비었거나 끊긴 응답은 재시도하고, 한도도 넉넉히 둔다.
+    content = ""
+    for _ in range(verify_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=llm_config["model"],
+                messages=[
+                    {"role": "system", "content": llm_config["system_prompt"]},
+                    {"role": "user", "content": build_verify_prompt(fact_sheet, body)},
+                ],
+                max_tokens=llm_config.get("verify_max_tokens", llm_config["report_max_tokens"]),
+                temperature=0,
+            )
+        except (APIStatusError, APITimeoutError):
+            time.sleep(2)
+            continue
+        choice = response.choices[0]
+        content = (choice.message.content or "").strip()
+        if content and choice.finish_reason == "stop":
+            break
     match = re.search(r"\[.*\]", content, re.DOTALL)
     try:
         issues = json.loads(match.group(0)) if match else None
@@ -358,7 +369,9 @@ def generate_report_body(
         else:
             # 외국어 단어는 마지막 시도에선 실패 대신 검수 상자로 넘긴다 — 실측에서 매 시도마다
             # 다른 단어("pattern", "difficoltà")가 섞여 하드 실패로는 보고서가 안 나왔다.
-            issues = verify_report_body(client, llm_config, fact_sheet, content)
+            # 보고서 본문은 [배경 근거]도 보고 썼으므로 검증에도 같이 줘야 그 수치를 오탐하지 않는다
+            verify_sheet = f"{fact_sheet}\n\n{build_context_block(fac_type='의료')}"
+            issues = verify_report_body(client, llm_config, verify_sheet, content)
             issues += [{"문장": w, "문제": "외국어 단어 혼입 — 한국어로 고쳐야 함"} for w in words]
             if not issues or attempt == retries:
                 return {"body": content, "attempts": attempt + 1, "model": llm_config["model"], "issues": issues}

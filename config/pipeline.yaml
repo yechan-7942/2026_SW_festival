@@ -47,6 +47,9 @@ llm:
   # 훨씬 길다 — reasoning 토큰까지 감안해 넉넉히 잡는다. 부족하면
   # finish_reason=length로 가드레일에 걸려 재시도된다.
   report_max_tokens: 8000
+  # 사실 대조(검증) 호출용. 본문 전체 + 사실 시트를 읽고 추론하느라 8000으론 content가
+  # 비어 끝나는 일이 잦았다(finish_reason=length).
+  verify_max_tokens: 16000
   temperature: 0.3
   # 이 system 메시지가 없으면 reasoning 과정이 content 필드에 그대로 새어
   # 나온다(영어 서술문으로, 그리고 실제 데이터에 없는 수치를 예시로 지어내는

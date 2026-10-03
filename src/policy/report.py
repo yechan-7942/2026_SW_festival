@@ -121,10 +121,14 @@ def generate_policy_card(
             continue
 
         choice = response.choices[0]
-        content = choice.message.content.strip()
+        # reasoning 모델이라 토큰을 전부 사고 과정(reasoning_content)에 쓰고 content를
+        # None으로 돌려줄 때가 있다 — 실제로 겪음. 빈 문자열로 받아 재시도 대상으로 넘긴다.
+        content = (choice.message.content or "").strip()
         hangul_ratio = _hangul_ratio(content)
 
-        if choice.finish_reason != "stop":
+        if not content:
+            last_error = f"content가 비어 있음(finish_reason={choice.finish_reason!r})"
+        elif choice.finish_reason != "stop":
             last_error = f"finish_reason={choice.finish_reason!r} (응답이 완성되지 않음)"
         elif "[근거]" not in content:
             last_error = "'[근거]' 줄이 없음"
