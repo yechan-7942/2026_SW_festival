@@ -63,7 +63,7 @@ REPORT_SECTIONS = [
 
 _NUMBER_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
 _LIST_MARKER_RE = re.compile(r"^(\s*(?:#+\s*)?)\d+\.\s", re.MULTILINE)
-_LATIN_WORD_RE = re.compile(r"[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9]*")
+_LATIN_WORD_RE = re.compile(r"[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9]*|[\u4e00-\u9fff]+")  # 영어·유럽어 단어, 한자 연속
 ALLOWED_LATIN = {"2SFCA", "SFCA", "E2SFCA", "KM", "LLM", "GM"}
 _GU_LIST_RE = re.compile(r"(남구|북구)[^()\n.]{0,15}\(([^)]*)\)")
 
@@ -236,7 +236,7 @@ def find_unverified_numbers(text: str, source: str) -> list[str]:
 
 
 _PROMPT_LABEL_RE = re.compile(r"\[([가-힣][가-힣 0-9]*)\]")
-KNOWN_TYPOS = {"임거리": "임계거리"}  # 실측에서 나온 오탈자 — 같은 모델이 반복해서 낸다
+KNOWN_TYPOS = {"임거리": "임계거리", "곱하기": "×"}  # 실측에서 나온 오탈자 — 같은 모델이 반복해서 낸다
 
 
 def clean_body(text: str) -> str:
@@ -252,7 +252,7 @@ def clean_body(text: str) -> str:
 
 
 def find_english_words(text: str) -> list[str]:
-    """본문에 섞인 영어 단어(첫 실행에서 "pattern"이 그대로 들어갔다). 허용 약어는 제외."""
+    """본문에 섞인 영어 단어(첫 실행에서 "pattern"이 그대로 들어갔다)와 한자("示한다", "明確히"). 허용 약어는 제외."""
     return sorted({w for w in _LATIN_WORD_RE.findall(text) if w.upper() not in ALLOWED_LATIN})
 
 
@@ -423,6 +423,9 @@ def generate_report_body(
         elif _hangul_ratio(content) < MIN_HANGUL_RATIO:
             last_error = f"한글 비율이 너무 낮음({_hangul_ratio(content):.0%}) — reasoning 누출 의심"
             feedback = []
+        elif not content.endswith((".", "다", ")")):
+            last_error = f"마지막 문장이 잘림: …{content[-15:]!r}"
+            feedback = ["마지막 문장이 끝나지 않고 잘렸다. 모든 문장을 마침표로 끝내라."]
         elif missing_sections:
             last_error = f"절 제목 누락: {missing_sections}"
             feedback = [f"절 제목 {', '.join(missing_sections)}가 빠졌다. 지정한 절 제목을 그대로 써라."]
@@ -440,6 +443,7 @@ def generate_report_body(
             # 다른 단어("pattern", "difficoltà")가 섞여 하드 실패로는 보고서가 안 나왔다.
             if words:
                 content = repair_foreign_words(client, llm_config, content, words, base_prompt, gu_by_name or {})
+                content = clean_body(content)  # 교정이 "곱하기" 같은 단어를 새로 넣을 수 있다
                 words = find_english_words(content)
             # 보고서 본문은 [배경 근거]도 보고 썼으므로 검증에도 같이 줘야 그 수치를 오탐하지 않는다
             verify_sheet = f"{fact_sheet}\n\n{build_context_block(fac_type='의료')}"

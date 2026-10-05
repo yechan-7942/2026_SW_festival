@@ -39,6 +39,7 @@ def test_list_markers_and_small_integers_are_not_treated_as_claims():
 def test_english_word_detected_but_allowed_acronyms_pass():
     assert ar.find_english_words("이러한 pattern은 2SFCA 기준 3km에서 보인다") == ["pattern"]
     assert ar.find_english_words("2SFCA와 LLM, 3km") == []
+    assert ar.find_english_words("결과를示한다. 출처를明確히 밝힌다") == ["明確", "示"]
 
 
 def test_feedback_is_not_used_as_number_source():
@@ -61,7 +62,7 @@ def _fake_client(contents: list[str]):
 
 
 def _body(extra: str = "") -> str:
-    return "\n\n".join(f"{s}\n구룡포읍의 격차 점수는 0.945로 가장 높다.{extra}" for s in ar.REPORT_SECTIONS)
+    return "\n\n".join(f"{s}\n구룡포읍의 격차 점수는 0.945로 가장 높다.{extra}" for s in ar.REPORT_SECTIONS) + "."
 
 
 @pytest.fixture
@@ -179,5 +180,12 @@ def test_review_box_renders_one_list_item_per_line():
 
 
 def test_clean_body_strips_prompt_labels_and_known_typos():
-    text = "[구간별 구성]에 따르면 [배경 근거 1]에서 임거리 변화가 있다. 대괄호 아닌 [A] 는 그대로."
-    assert ar.clean_body(text) == "구간별 구성에 따르면 배경 근거 1에서 임계거리 변화가 있다. 대괄호 아닌 [A] 는 그대로."
+    text = "[구간별 구성]에 따르면 [배경 근거 1]에서 임거리 변화가 있다. 0.5곱하기정규화. 대괄호 아닌 [A] 는 그대로."
+    assert ar.clean_body(text) == "구간별 구성에 따르면 배경 근거 1에서 임계거리 변화가 있다. 0.5×정규화. 대괄호 아닌 [A] 는 그대로."
+
+
+def test_truncated_body_is_retried(monkeypatch, llm_config):
+    """회귀: 마지막 문장이 '필요하'에서 잘린 본문이 그대로 보고서에 들어갔다."""
+    monkeypatch.setattr(ar, "_client", lambda _: _fake_client([_body(" 검토가 필요하")[:-1], _body(), "[]"]))
+    result = ar.generate_report_body("[분석 개요]\n- 구룡포읍 0.945")
+    assert result["attempts"] == 2
