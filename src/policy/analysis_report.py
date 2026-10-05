@@ -235,6 +235,22 @@ def find_unverified_numbers(text: str, source: str) -> list[str]:
     return unverified
 
 
+_PROMPT_LABEL_RE = re.compile(r"\[([가-힣][가-힣 0-9]*)\]")
+KNOWN_TYPOS = {"임거리": "임계거리"}  # 실측에서 나온 오탈자 — 같은 모델이 반복해서 낸다
+
+
+def clean_body(text: str) -> str:
+    """보고서에 쓰기 전 본문의 기계적 흔적을 정리한다 — 의미는 건드리지 않는다.
+
+    프롬프트의 항목 이름이 "[구간별 구성]에 따르면"처럼 대괄호째 본문에 새어 나오는 일이
+    잦아 대괄호만 벗기고, 실측에서 반복된 오탈자는 고친다.
+    """
+    text = _PROMPT_LABEL_RE.sub(r"\1", text)
+    for typo, fixed in KNOWN_TYPOS.items():
+        text = text.replace(typo, fixed)
+    return text
+
+
 def find_english_words(text: str) -> list[str]:
     """본문에 섞인 영어 단어(첫 실행에서 "pattern"이 그대로 들어갔다). 허용 약어는 제외."""
     return sorted({w for w in _LATIN_WORD_RE.findall(text) if w.upper() not in ALLOWED_LATIN})
@@ -260,7 +276,8 @@ def build_verify_prompt(fact_sheet: str, body: str) -> str:
         "본문의 각 문장을 사실 시트와 대조해, 사실 시트와 모순되거나 사실 시트로 뒷받침되지 않는 "
         "사실 주장(개수, 소속 구, 순위, 최고/최저, 어느 동의 카드가 무엇을 제안했는지 등)을 모두 찾아라. "
         "해석·의견 문장은 제외한다. 결과는 JSON 배열로만 출력: "
-        '[{"문장": "...", "문제": "..."}]. 문제가 없으면 [].'
+        '[{"문장": "...", "문제": "..."}]. 문제가 없으면 []. '
+        '"문제" 설명은 반드시 한국어로 쓴다(영어 금지).'
     )
 
 
@@ -304,6 +321,57 @@ def verify_report_body(client, llm_config: dict, fact_sheet: str, body: str, ver
     return [i for i in issues if isinstance(i, dict) and i.get("문장")]
 
 
+def repair_foreign_words(
+    client, llm_config: dict, body: str, words: list[str], source: str, gu_by_name: dict[str, str], tries: int = 2
+) -> str:
+    """본문에 남은 외국어 단어만 한국어로 바꾼 본문을 받아온다.
+
+    전체를 다시 쓰게 하면 매번 다른 단어가 섞여 끝나지 않으므로(실측), 단어 치환만 시킨다.
+    바뀐 본문이 원래 가드레일(절 제목·수치·구 소속·한글 비율)과 영어 단어 검사를 모두
+    통과할 때만 채택하고, 못 넘으면 원래 본문을 그대로 돌려준다.
+    """
+    prompt = (
+        f"[본문]\n{body}\n\n"
+        f"위 본문에 외국어 단어가 섞였다: {', '.join(words)}\n"
+        "각 단어를 문맥에 맞는 자연스러운 한국어로 바꿔 본문 전체를 다시 출력해라. "
+        "그 단어 외에는 한 글자도 바꾸지 마라. 절 제목·수치·문단 구분도 그대로 둔다. "
+        "설명 없이 본문만 출력한다."
+    )
+    for _ in range(tries):
+        try:
+            response = client.chat.completions.create(
+                model=llm_config["model"],
+                messages=[
+                    {"role": "system", "content": llm_config["system_prompt"]},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=llm_config.get("verify_max_tokens", llm_config["report_max_tokens"]),
+                temperature=0,
+            )
+        except (APIStatusError, APITimeoutError):
+            time.sleep(2)
+            continue
+        choice = response.choices[0]
+        fixed = (choice.message.content or "").strip()
+        for hanja, hangul in KNOWN_HANJA_LEAKS.items():
+            fixed = fixed.replace(hanja, hangul)
+        # 단어만 바꾸라고 했으므로 길이·줄 수가 거의 같아야 한다 — 모델이 "외국어 단어가 섞였다: …"
+        # 같은 설명 줄을 본문 끝에 덧붙인 채 가드레일을 통과한 적이 있다(실측).
+        same_shape = abs(len(fixed) - len(body)) <= 0.1 * len(body) and fixed.count("\n") == body.count("\n")
+        if (
+            fixed
+            and same_shape
+            and choice.finish_reason == "stop"
+            and all(s in fixed for s in REPORT_SECTIONS)
+            and _hangul_ratio(fixed) >= MIN_HANGUL_RATIO
+            and not find_english_words(fixed)
+            and not find_unverified_numbers(fixed, source)
+            and not find_gu_mismatches(fixed, gu_by_name)
+        ):
+            return fixed
+    return body
+
+
 def generate_report_body(
     fact_sheet: str,
     gu_by_name: dict[str, str] | None = None,
@@ -344,6 +412,7 @@ def generate_report_body(
         content = (choice.message.content or "").strip()
         for hanja, hangul in KNOWN_HANJA_LEAKS.items():
             content = content.replace(hanja, hangul)
+        content = clean_body(content)
         missing_sections = [s for s in REPORT_SECTIONS if s not in content]
 
         # 숫자 대조는 피드백을 뺀 base_prompt 기준 — 피드백에 적힌 "틀린 숫자"가
@@ -369,6 +438,9 @@ def generate_report_body(
         else:
             # 외국어 단어는 마지막 시도에선 실패 대신 검수 상자로 넘긴다 — 실측에서 매 시도마다
             # 다른 단어("pattern", "difficoltà")가 섞여 하드 실패로는 보고서가 안 나왔다.
+            if words:
+                content = repair_foreign_words(client, llm_config, content, words, base_prompt, gu_by_name or {})
+                words = find_english_words(content)
             # 보고서 본문은 [배경 근거]도 보고 썼으므로 검증에도 같이 줘야 그 수치를 오탐하지 않는다
             verify_sheet = f"{fact_sheet}\n\n{build_context_block(fac_type='의료')}"
             issues = verify_report_body(client, llm_config, verify_sheet, content)
@@ -394,8 +466,9 @@ def assemble_report(
         )
     review_box = []
     if issues:
-        review_box = ["", "> ⚠️ **검수 필요** — 자동 사실 대조에서 아래 문장이 지적됐다(검증자도 틀릴 수 있음):"]
-        review_box += [f"> - \"{i['문장']}\" — {i.get('문제', '')}" for i in issues]
+        # 인용 블록 안의 목록은 목록 앞에 빈 인용 줄(">")이 있어야 한 줄씩 나뉘어 렌더링된다
+        review_box = ["", "> ⚠️ **검수 필요** — 자동 사실 대조에서 아래 문장이 지적됐다(검증자도 틀릴 수 있음):", ">"]
+        review_box += [f"> - \"{i['문장'].strip()}\" — {str(i.get('문제', '')).strip()}" for i in issues]
     return "\n".join(
         [
             "# 포항시 외국인 주민 의료 인프라 격차 분석 보고서",
@@ -411,6 +484,9 @@ def assemble_report(
             body,
             "",
             "---",
+            "",
+            # 제목만 앞 쪽 아래에 남고 표가 다음 쪽으로 넘어가지 않도록 부록은 새 쪽에서 시작한다
+            '<div style="page-break-before: always"></div>',
             "",
             "## 부록 A. 행정동별 격차 점수 (코드 생성)",
             "",

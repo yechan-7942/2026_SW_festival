@@ -41,6 +41,11 @@ h3 { font-size: 12.5pt; margin-top: 20px; color: #184f95; }
 p { margin: 8px 0; }
 hr { border: none; border-top: 1px solid #d8d7d2; margin: 24px 0; }
 table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 10pt; page-break-inside: avoid; }
+/* 한 쪽을 넘기는 긴 표(12행 이상)는 쪽 사이에서 끊기게 둔다 — 안 그러면 표 전체가 다음 쪽으로
+   밀려 앞 쪽에 제목만 덩그러니 남는다. 행 하나는 쪽 중간에서 잘리지 않게 한다. */
+table:has(tr:nth-child(12)) { page-break-inside: auto; }
+tr { page-break-inside: avoid; }
+h2, h3 { page-break-after: avoid; }
 th, td { border: 1px solid #cfcfc9; padding: 6px 9px; text-align: left; }
 th { background: #eef3fb; }
 code { background: #f1f0ec; padding: 1px 5px; border-radius: 3px; font-size: 9.5pt; }

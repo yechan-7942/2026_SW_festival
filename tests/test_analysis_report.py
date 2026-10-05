@@ -134,6 +134,50 @@ def test_gu_mismatch_catches_swapped_dong_from_real_run():
 
 
 def test_foreign_word_on_last_attempt_goes_to_review_box(monkeypatch, llm_config):
-    monkeypatch.setattr(ar, "_client", lambda _: _fake_client([_body(" difficoltà"), "[]"]))
+    """교정 호출(2번)도 단어를 못 고치면 원래 본문을 쓰고 검수 상자로 넘긴다."""
+    bad = _body(" difficoltà")
+    monkeypatch.setattr(ar, "_client", lambda _: _fake_client([bad, bad, bad, "[]"]))
     result = ar.generate_report_body("[분석 개요]\n- 구룡포읍 0.945", retries=0)
     assert result["issues"] == [{"문장": "difficoltà", "문제": "외국어 단어 혼입 — 한국어로 고쳐야 함"}]
+
+
+def test_foreign_word_is_repaired_without_regenerating(monkeypatch, llm_config):
+    """외국어 단어만 한국어로 바꾼 본문이 가드레일을 통과하면 그걸 쓰고 검수 상자에 안 남긴다."""
+    monkeypatch.setattr(ar, "_client", lambda _: _fake_client([_body(" difficoltà"), _body(" 어려움이큰상황임"), "[]"]))
+    result = ar.generate_report_body("[분석 개요]\n- 구룡포읍 0.945", retries=0)
+    assert "difficoltà" not in result["body"]
+    assert result["issues"] == []
+
+
+def test_repair_is_rejected_when_it_appends_explanation_line(monkeypatch, llm_config):
+    """회귀: 교정 응답 끝에 '외국어 단어가 섞였다: …' 설명 줄이 붙어 본문에 들어갔다."""
+    padded = _body(" 어려움이큰상황임") + "\n위 본문에 외국어 단어가 섞였다: 곱하기"
+    monkeypatch.setattr(ar, "_client", lambda _: _fake_client([_body(" difficoltà"), padded, padded, "[]"]))
+    result = ar.generate_report_body("[분석 개요]\n- 구룡포읍 0.945", retries=0)
+    assert "섞였다" not in result["body"]
+
+
+def test_repair_is_rejected_when_it_adds_invented_number(monkeypatch, llm_config):
+    broken = _body(" 어려움이큰 차이는 0.046이다.")
+    monkeypatch.setattr(ar, "_client", lambda _: _fake_client([_body(" difficoltà"), broken, broken, "[]"]))
+    result = ar.generate_report_body("[분석 개요]\n- 구룡포읍 0.945", retries=0)
+    assert "0.046" not in result["body"]
+    assert [i["문장"] for i in result["issues"]] == ["difficoltà"]
+
+
+def test_review_box_renders_one_list_item_per_line():
+    """회귀: 인용 블록 안 목록이 빈 인용 줄 없이 이어져 한 문단으로 뭉쳐 렌더링됐다."""
+    df = pd.DataFrame(
+        {"rank": [1], "adm_nm": ["구룡포읍"], "gu": ["남구"], "gap_score": [0.9], "cluster_id": [1],
+         "foreign_ratio": [0.15], "access_rank": [18]}
+    )
+    md = ar.assemble_report("본문", df, "m", [{"문장": "a", "문제": "x"}, {"문장": "b", "문제": "y"}])
+    lines = md.splitlines()
+    header = next(i for i, l in enumerate(lines) if "검수 필요" in l)
+    assert lines[header + 1] == ">"
+    assert lines[header + 2].startswith("> - ") and lines[header + 3].startswith("> - ")
+
+
+def test_clean_body_strips_prompt_labels_and_known_typos():
+    text = "[구간별 구성]에 따르면 [배경 근거 1]에서 임거리 변화가 있다. 대괄호 아닌 [A] 는 그대로."
+    assert ar.clean_body(text) == "구간별 구성에 따르면 배경 근거 1에서 임계거리 변화가 있다. 대괄호 아닌 [A] 는 그대로."
