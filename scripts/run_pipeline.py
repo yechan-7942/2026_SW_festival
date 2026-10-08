@@ -41,6 +41,14 @@ def run_ingest(config_path: str) -> None:
     except ValueError as e:
         print(f"  건너뜀 — {e}")
 
+    print("[ingest] SGIS 집계구 인구가중 중심점...")
+    try:
+        from src.ingest.sgis_tract import save_pop_centroids
+
+        print(f"  저장: {save_pop_centroids()}")
+    except (ValueError, RuntimeError) as e:
+        print(f"  건너뜀(기하 중심점으로 대체됨) — {e}")
+
 
 def run_preprocess() -> bool:
     print("[preprocess] 법정동 → 행정동 조인 + 좌표 재투영...")

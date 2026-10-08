@@ -110,7 +110,13 @@ def test_fact_sheet_precomputes_counts_llm_got_wrong():
     sheet = ar.build_fact_sheet(df, gap_score_sensitivity("보건의료"), pd.read_parquet(ar.POLICY_CARDS_PATH))
     assert len(df) == 29
     assert "[구간별 구성]" in sheet
-    assert "청하면" in sheet.split("상위 5개의 소속 구:")[1].splitlines()[0]  # 상위 5위 중 북구 동
+    # 상위 5위 중 북구 동 — 데이터가 바뀌어도 깨지지 않도록 실제 순위에서 읽는다
+    top5 = df.sort_values("rank").head(ar.TOP_N)
+    line = sheet.split("상위 5개의 소속 구:")[1].splitlines()[0]
+    for gu in top5["gu"].unique():
+        assert gu in line
+    for nm in top5[top5["gu"] == "북구"]["adm_nm"]:
+        assert nm in line
     for label in ar.CLUSTER_LABELS.values():
         assert f"- {label}: " in sheet
 

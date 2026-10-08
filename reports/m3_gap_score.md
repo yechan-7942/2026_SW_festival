@@ -54,6 +54,10 @@ gap_scores.parquet [adm_cd, fac_type, gap_score, rank, cluster_id]
 - `save_gap_scores()` → `data/processed/gap_scores.parquet`
 - `scripts/run_pipeline.py --stage gap`로 실행 가능하도록 연결(이 커밋에서 `access`/`gap` 스테이지를 `NOT_YET_IMPLEMENTED`에서 제거).
 
+## 2026-10-08 갱신 — 수요점 교체 후 값
+
+수요점을 인구가중 중심점으로 바꾸면서 이 문서의 구체적 순위·점수는 바뀌었다. 상위 4곳은 구룡포읍 0.883, 장기면 0.724, 호미곶면 0.711, 대송면 0.639 순이며 네 곳 모두 1/3/5km 전부에서 5위 이내다. 5위는 죽장면(0.540). 아래 "임계거리 통합 순위" 절의 구체 사례는 기하 중심점 기준이었다. 현재는 송라면(1km 5위↔3km 19위, 변동 14)·효곡동(11)·용흥동(10)·기계면(9)이 가장 크게 흔들린다(`gap_robustness.parquet`).
+
 ## 임계거리 통합 순위와 격차 유형 (2026-10-08 추가)
 
 `src/gap/score.py`의 `build_gap_robustness()` → `data/processed/gap_robustness.parquet`(`--stage gap`이 함께 생성). `gap_scores.parquet` 계약 컬럼은 건드리지 않고 별도 파일로 둔다.

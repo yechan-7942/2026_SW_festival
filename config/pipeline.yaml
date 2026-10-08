@@ -13,6 +13,9 @@ access:
   # 세 값의 중앙값 — 특정 근거로 고른 "정답"이 아니라 절충값이며, 실제 결론은
   # 민감도 분석표(distance_thresholds_km 전체)를 함께 봐야 한다(README §7).
   default_threshold_km: 3
+  # 수요점 위치. population_weighted = 집계구 인구 가중 중심점(src/ingest/sgis_tract.py),
+  # geometric = 행정동 폴리곤 기하 중심점(초기 프로토타입 방식, 비교용).
+  demand_point: population_weighted
   # 2SFCA를 돌릴 공급 도메인. category_large는 facilities.parquet의 컬럼값과
   # 일치해야 한다(src/preprocess/admin_join.py 참고).
   #
