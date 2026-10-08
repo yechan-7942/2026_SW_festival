@@ -18,6 +18,7 @@ from src.viz.heatmap import BAR_HUE, FIGURES_DIR, GAP_SCORES_PATH, load_geo_gap_
 
 ADMIN_UNITS_PATH = "data/processed/admin_units.parquet"
 POLICY_CARDS_PATH = "data/processed/policy_cards.parquet"
+GAP_ROBUSTNESS_PATH = "data/processed/gap_robustness.parquet"
 DASHBOARD_OUTPUT_PATH = "outputs/dashboard.html"
 HEATMAP_PNG_PATH = f"{FIGURES_DIR}/gap_heatmap.png"
 
@@ -37,6 +38,11 @@ def load_dashboard_data(fac_type: str = "보건의료") -> pd.DataFrame:
     gdf = load_geo_gap_scores(fac_type, GAP_SCORES_PATH)[["adm_cd", "adm_nm", "gap_score", "rank", "cluster_id"]]
     cards = pd.read_parquet(POLICY_CARDS_PATH)[["adm_nm", "policy_text"]]
     merged = gdf.merge(cards, on="adm_nm", how="left")
+    robustness = pd.read_parquet(GAP_ROBUSTNESS_PATH)
+    rank_cols = [c for c in robustness.columns if c.endswith("km_rank")]
+    robustness["rank_min"] = robustness[rank_cols].min(axis=1)
+    robustness["rank_max"] = robustness[rank_cols].max(axis=1)
+    merged = merged.merge(robustness[["adm_cd", "gap_type", "rank_min", "rank_max", "top_in_all"]], on="adm_cd", how="left")
     if merged["policy_text"].isna().any():
         missing = merged.loc[merged["policy_text"].isna(), "adm_nm"].tolist()
         raise ValueError(f"policy_cards.parquet에 없는 행정동: {missing}")
@@ -74,6 +80,9 @@ def build_dashboard_html(fac_type: str = "보건의료") -> str:
                 "gap_score": round(float(row.gap_score), 3),
                 "status_label": status["label"],
                 "status_hex": status["hex"],
+                "gap_type": row.gap_type,
+                "rank_range": f"{int(row.rank_min)}위" if row.rank_min == row.rank_max else f"{int(row.rank_min)}~{int(row.rank_max)}위",
+                "stable_top": bool(row.top_in_all),
                 "body": body,
                 "evidence": evidence,
             }
@@ -254,7 +263,7 @@ _TEMPLATE = """<!doctype html>
     </div>
     <div id="bar-list" class="bar-list"></div>
     <table class="data-table" id="data-table">
-      <thead><tr><th>순위</th><th>행정동</th><th>격차 점수</th><th>상태</th></tr></thead>
+      <thead><tr><th>순위</th><th>행정동</th><th>격차 점수</th><th>상태</th><th>임계거리별 순위(1/3/5km)</th><th>격차 유형</th></tr></thead>
       <tbody id="table-body"></tbody>
     </table>
     <div class="empty-state" id="empty-bars">검색 결과가 없습니다.</div>
@@ -264,6 +273,15 @@ _TEMPLATE = """<!doctype html>
     <h2>행정동별 정책 카드</h2>
     <div class="cards" id="card-grid"></div>
     <div class="empty-state" id="empty-cards">검색 결과가 없습니다.</div>
+  </section>
+
+  <section>
+    <h2>해석 시 유의사항</h2>
+    <ul style="font-size:13px;color:var(--text-secondary);line-height:1.7;padding-left:18px;margin:0">
+      <li>접근성은 3km 기준 2SFCA 하나이고, 순위는 임계거리(1/3/5km)에 따라 바뀐다 — 위 "임계거리별 순위"를 함께 볼 것.</li>
+      <li>정책 카드의 "[근거]"는 전국(여가부)·경북 1권역(포항·경주·영천·경산·청도) 조사 수치이며 포항 단독 수치가 아니다. 행정동별로 달라지는 값이 아니다.</li>
+      <li>카드는 LLM이 생성했고 형식만 자동 검증했다 — 내용의 타당성은 사람 검수가 필요하다.</li>
+    </ul>
   </section>
 </div>
 
@@ -299,6 +317,8 @@ function renderBars(filterText) {{
       <td>${{escapeHtml(d.adm_nm)}}</td>
       <td class="num">${{d.gap_score}}</td>
       <td><span class="status-badge" style="background:${{d.status_hex}}"><span class="dot"></span>${{d.status_label}}</span></td>
+      <td class="num">${{d.rank_range}}${{d.stable_top ? ' (안정)' : ''}}</td>
+      <td>${{escapeHtml(d.gap_type)}}</td>
     </tr>`).join('');
 
   const anyMatch = DATA.some(d => !filterText || d.adm_nm.includes(filterText));
@@ -317,6 +337,7 @@ function renderCards(filterText) {{
         <span class="rank">${{d.rank}}위 · ${{d.gap_score}}</span>
       </div>
       <span class="status-badge" style="background:${{d.status_hex}}; width:fit-content"><span class="dot"></span>${{d.status_label}}</span>
+      <div class="score">${{escapeHtml(d.gap_type)}} · 임계거리 1/3/5km 순위 ${{d.rank_range}}${{d.stable_top ? ' · 모든 임계거리에서 상위 5위 이내' : ''}}</div>
       <div class="body">${{escapeHtml(d.body)}}</div>
       ${{d.evidence ? `<div class="evidence">${{escapeHtml(d.evidence)}}</div>` : ''}}
     </div>`;

@@ -41,8 +41,9 @@ llm:
   # nemotron-3-super는 추론모델이라 답변 전에 내부적으로 생각(reasoning)을
   # 하는데, 토큰 예산이 부족하면 생각만 하다 끝나서(finish_reason=length)
   # 실제 답변이 안 나온다. 직접 테스트해보니 짧은 2문장 답변에도 reasoning
-  # 포함 약 580 completion 토큰이 들었다 — 1500이면 여유 있음.
-  max_tokens: 1500
+  # 포함 약 580 completion 토큰이 들었다. 행정동 사실·규칙을 넣은 긴 프롬프트에서는 1500으로
+  # finish_reason=length가 잦아서 3000으로 올렸다.
+  max_tokens: 3000
   # 분석 보고서(src/policy/analysis_report.py)는 1500자 안팎 6개 절이라 카드보다
   # 훨씬 길다 — reasoning 토큰까지 감안해 넉넉히 잡는다. 부족하면
   # finish_reason=length로 가드레일에 걸려 재시도된다.

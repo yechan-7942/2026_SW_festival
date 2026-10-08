@@ -8,6 +8,18 @@ from src.access.two_sfca import two_sfca
 ADMIN_UNITS_PATH = "data/processed/admin_units.parquet"
 ACCESSIBILITY_PATH = "data/processed/accessibility.parquet"
 GAP_SCORES_OUTPUT_PATH = "data/processed/gap_scores.parquet"
+GAP_ROBUSTNESS_OUTPUT_PATH = "data/processed/gap_robustness.parquet"
+TOP_N = 5  # "최우선 구간"으로 보는 순위 범위 (analysis_report.TOP_N과 같은 기준)
+
+# 수요·접근성 두 축을 중앙값 기준으로 나눈 4유형. cluster_id(순위 사분위)와 달리
+# "왜 격차가 큰가"를 구분한다 — 정책 방향이 다르기 때문이다(수요 집중이면 서비스
+# 확충, 접근성 부족이면 시설·교통 보강).
+GAP_TYPE_LABELS = {
+    (True, True): "복합 취약형(수요 높음·접근성 낮음)",
+    (True, False): "수요 집중형(수요 높음·접근성 양호)",
+    (False, True): "접근성 부족형(수요 낮음·접근성 낮음)",
+    (False, False): "양호형(수요 낮음·접근성 양호)",
+}
 DEFAULT_WEIGHTS_PATH = "config/weights.yaml"
 
 
@@ -138,6 +150,59 @@ def gap_score_sensitivity(category_large: str, config_path: str = "config/pipeli
         wide = column if wide is None else wide.join(column)
 
     return wide.reset_index()
+
+
+def classify_gap_type(demand_norm: pd.Series, access_norm: pd.Series) -> pd.Series:
+    """수요 정규화값·접근성 정규화값을 각 중앙값과 비교해 4유형으로 분류한다.
+
+    중앙값 기준이라 항상 상대 평가다 — 절대적 "수요가 높다"는 뜻이 아니라
+    "29개 동 중 상위 절반"이라는 뜻이다. 정확히 중앙값인 동은 낮은 쪽으로 둔다.
+    """
+    high_demand = demand_norm > demand_norm.median()
+    low_access = access_norm < access_norm.median()
+    return pd.Series(
+        [GAP_TYPE_LABELS[(bool(d), bool(a))] for d, a in zip(high_demand, low_access)],
+        index=demand_norm.index,
+    )
+
+
+def build_gap_robustness(
+    category_large: str = "보건의료",
+    config_path: str = "config/pipeline.yaml",
+    admin_units_path: str = ADMIN_UNITS_PATH,
+    weights_path: str = DEFAULT_WEIGHTS_PATH,
+) -> pd.DataFrame:
+    """임계거리(1/3/5km) 전체를 통합한 순위 안정성 + 수요·접근성 유형.
+
+    gap_scores.parquet(기본 임계값 3km 한 장)은 계약 컬럼을 그대로 두고, 임계거리에
+    따라 순위가 흔들린다는 이 프로젝트의 핵심 발견을 수치로 따로 담는다:
+    rank_mean(임계거리별 순위 평균), rank_spread(최고-최저 순위 차), top_in_all(모든
+    임계거리에서 TOP_N 이내인지). gap_type은 기본 임계값 기준 유형이다.
+    """
+    sens = gap_score_sensitivity(category_large, config_path, admin_units_path=admin_units_path, weights_path=weights_path)
+    rank_cols = [c for c in sens.columns if c.endswith("km_rank")]
+    out = sens[["adm_cd", *rank_cols]].copy()
+    out["rank_mean"] = out[rank_cols].mean(axis=1)
+    out["rank_spread"] = out[rank_cols].max(axis=1) - out[rank_cols].min(axis=1)
+    out["top_in_all"] = (out[rank_cols] <= TOP_N).all(axis=1)
+
+    weights = load_weights(weights_path)
+    units = pd.read_parquet(admin_units_path, columns=["adm_cd", "pop_total", "pop_foreign"]).set_index("adm_cd")
+    accessibility = pd.read_parquet(ACCESSIBILITY_PATH)
+    access = accessibility[accessibility["fac_type"] == category_large].set_index("adm_cd")["access_index"]
+    demand_norm = min_max_normalize(_demand_metric(units, weights["demand_metric"]).loc[access.index])
+    access_norm = min_max_normalize(access)
+    types = classify_gap_type(demand_norm, access_norm).rename("gap_type")
+    out = out.merge(types.reset_index(), on="adm_cd", how="left")
+    out["fac_type"] = category_large
+    return out
+
+
+def save_gap_robustness(path: str = GAP_ROBUSTNESS_OUTPUT_PATH) -> str:
+    df = build_gap_robustness()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(path)
+    return path
 
 
 if __name__ == "__main__":

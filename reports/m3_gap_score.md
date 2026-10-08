@@ -24,7 +24,7 @@ gap_score = w_demand × norm(수요) + w_access × (1 − norm(접근성))
 
 ## cluster_id는 사분위 구간이지 클러스터링이 아니다
 
-README 인터페이스 계약(`gap_scores.parquet`)에 `cluster_id` 필드가 있고 `src/gap/cluster.py`가 "정책 유형 분류"를 맡을 예정이지만, 이번 M3에서는 별도 클러스터링 모듈을 만들지 않았다. 이유: 현재 특징(feature)이 `gap_score` 하나뿐이다(M4 NLP 수요 신호가 아직 없음). 단변량 특징에 KMeans 등을 돌려도 결과는 정렬 후 구간을 나누는 것과 동일하다 — 라이브러리를 쓰는 것이 "가짜 정교함"이 될 뿐이다. 그래서 `score.py` 안에 `_assign_priority_tier()`로 순위 기반 4분위(1=최우선~4=양호)만 매겼다. **M4가 붙어 결핍 유형(demand_signals.parquet)이라는 두 번째 축이 생기면 다변량 클러스터링으로 교체해야 한다** — 지금 구조는 그 자리를 채우는 임시값이다.
+README 인터페이스 계약(`gap_scores.parquet`)에 `cluster_id` 필드가 있고 `src/gap/cluster.py`가 "정책 유형 분류"를 맡을 예정이지만, 이번 M3에서는 별도 클러스터링 모듈을 만들지 않았다. 이유: 현재 특징(feature)이 `gap_score` 하나뿐이다(M4 NLP 수요 신호가 아직 없음). 단변량 특징에 KMeans 등을 돌려도 결과는 정렬 후 구간을 나누는 것과 동일하다 — 라이브러리를 쓰는 것이 "가짜 정교함"이 될 뿐이다. 그래서 `score.py` 안에 `_assign_priority_tier()`로 순위 기반 4분위(1=최우선~4=양호)만 매겼다. `cluster_id`는 "우선순위 구간"일 뿐 정책 유형이 아니다 — 보고서·대시보드에서도 그렇게 부른다. M4(MDIS)는 포기했으므로(`reports/m4_nlp_substitute.md`) 행정동별 결핍 유형 축은 생기지 않는다. 대신 이미 있는 두 축(수요 정규화값·접근성 정규화값)을 중앙값으로 나눈 **격차 유형 4종**을 아래 "임계거리 통합 순위와 격차 유형" 절에서 따로 만들었다.
 
 ## 임계거리 민감도 — access_index보다 gap_score 상위권이 더 안정적이다
 
@@ -53,6 +53,17 @@ gap_scores.parquet [adm_cd, fac_type, gap_score, rank, cluster_id]
 
 - `save_gap_scores()` → `data/processed/gap_scores.parquet`
 - `scripts/run_pipeline.py --stage gap`로 실행 가능하도록 연결(이 커밋에서 `access`/`gap` 스테이지를 `NOT_YET_IMPLEMENTED`에서 제거).
+
+## 임계거리 통합 순위와 격차 유형 (2026-10-08 추가)
+
+`src/gap/score.py`의 `build_gap_robustness()` → `data/processed/gap_robustness.parquet`(`--stage gap`이 함께 생성). `gap_scores.parquet` 계약 컬럼은 건드리지 않고 별도 파일로 둔다.
+
+- `1km_rank`·`3km_rank`·`5km_rank`: 임계거리별 격차 순위
+- `rank_mean`·`rank_spread`: 순위 평균·(최고-최저) 차이
+- `top_in_all`: 세 임계거리 모두 5위 이내인지 — 실행 결과 구룡포읍·호미곶면·장기면·대송면 4곳만 True (5위 청하면은 5km에서 6위)
+- `gap_type`: 수요(외국인 비율)가 중앙값 초과인지 × 접근성이 중앙값 미만인지로 나눈 4유형(복합 취약형·수요 집중형·접근성 부족형·양호형). 29개 동 안에서의 상대 평가다.
+
+순위 변동이 큰 동은 청림동(1km 14위↔3km 29위, 변동 15)·기계면(7)·제철동(11)이다. 이 동들은 단일 임계값 순위를 그대로 인용하면 안 된다.
 
 ## 알려진 한계
 

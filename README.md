@@ -89,11 +89,14 @@ uv sync                                              # 환경 설치
 
 uv run python scripts/m0_audit.py --config config/pipeline.yaml     # 데이터 확인
 uv run python scripts/run_pipeline.py --stage all                   # 전체 실행 (정책 카드 29개도 API로 재생성·덮어씀)
+uv run python scripts/run_pipeline.py --stage all --skip-llm        # LLM 호출(policy·report) 없이 나머지만 — 기존 카드·보고서 보존
 uv run python scripts/run_pipeline.py --stage access                # 특정 단계만
 uv run python scripts/run_pipeline.py --stage report                # LLM 분석 보고서 (outputs/analysis_report.pdf)
 ```
 
-의존성: `geopandas`, `shapely`, `pyproj`, `pandas`, `plotly`, `openai`(NVIDIA build 호출용) 정도.
+의존성은 `pyproject.toml`이 기준이다(`geopandas`, `shapely`, `pyproj`, `scipy`, `pandas`, `pyarrow`, `plotly`, `kaleido`, `openai`(NVIDIA build 호출용), `markdown` 등). 파이썬 3.11 이상.
+
+테스트는 `uv run pytest`. 시설 데이터를 만드는 테스트(`tests/test_facilities.py`)는 심평원 xlsx 로딩과 상가정보 API 호출이 있어 느리다(수 분). 빠른 확인은 `uv run pytest --ignore=tests/test_facilities.py`.
 
 ---
 

@@ -19,23 +19,30 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_build_facilities_has_contract_columns_and_unique_fac_id():
-    from src.preprocess.admin_join import FACILITIES_COLUMNS, build_facilities
+@pytest.fixture(scope="module")
+def facilities():
+    # build_facilities()는 심평원 xlsx 로딩 + 상가정보 API 호출이라 느리다 — 모듈당 한 번만 만든다.
+    from src.preprocess.admin_join import build_facilities
 
-    gdf = build_facilities()
+    return build_facilities()
+
+
+def test_build_facilities_has_contract_columns_and_unique_fac_id(facilities):
+    from src.preprocess.admin_join import FACILITIES_COLUMNS
+
+    gdf = facilities
     assert list(gdf.columns) == FACILITIES_COLUMNS
     assert gdf["fac_id"].is_unique
     assert gdf["adm_cd"].isna().sum() == 0
 
 
-def test_build_facilities_combines_both_sources_without_double_counting_medical():
+def test_build_facilities_combines_both_sources_without_double_counting_medical(facilities):
     from src.preprocess.admin_join import (
         MEDICAL_CATEGORY_LARGE,
-        build_facilities,
         join_facilities_to_admin_dong,
     )
 
-    gdf = build_facilities()
+    gdf = facilities
     medical_count = len(join_facilities_to_admin_dong())
 
     medical_rows = gdf[gdf["category_large"] == MEDICAL_CATEGORY_LARGE]
@@ -47,8 +54,6 @@ def test_build_facilities_combines_both_sources_without_double_counting_medical(
     assert (commercial_rows["category_large"] != MEDICAL_CATEGORY_LARGE).all()
 
 
-def test_build_facilities_capacity_is_never_zero_or_negative():
-    from src.preprocess.admin_join import build_facilities
-
-    gdf = build_facilities()
+def test_build_facilities_capacity_is_never_zero_or_negative(facilities):
+    gdf = facilities
     assert (gdf["capacity"] >= 1).all()

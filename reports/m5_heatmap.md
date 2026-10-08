@@ -26,7 +26,8 @@
 
 - 포항 도심 밀집 지역(중앙동·죽도동·상대동 등 좁은 행정동이 몰린 구간)은 지도상 라벨이 겹쳐 읽기 어렵다 — 정확한 순위 비교는 `build_gap_ranking_bar`(막대그래프)로 보완해야 한다.
 - 현재는 `보건의료` 도메인·기본 임계값(3km) 한 장만 생성한다. `m3_gap_score.md`가 보고한 임계거리 민감도(1/3/5km)를 지도로 나란히 비교하는 기능은 아직 없다 — 필요하면 `build_gap_heatmap`을 감싸 여러 임계값의 `gap_scores`를 각각 렌더링하면 된다.
-- "정책 처방 카드"(README §5.4 결과물 형태의 나머지 절반)는 이번 범위에 포함하지 않았다 — LLM 리포트 생성은 `gap_scores.parquet` + `demand_signals.parquet`(M4, MDIS 블로커) 둘 다 필요하다(README §5 인터페이스 계약).
+- (해결됨) 정책 처방 카드는 이후 `reports/m5_policy_llm.md`에서 구현했고, 히트맵·랭킹·카드는 `outputs/dashboard.html` 통합 대시보드로 묶었다. M4 MDIS를 포기하고 공개 결과보고서 수치를 배경 근거로 쓰는 쪽으로 바뀌어 `demand_signals.parquet`은 필요하지 않다.
+- 임계거리 1/3/5km 순위는 지도 대신 대시보드의 "임계거리별 순위" 열·카드 문구(`data/processed/gap_robustness.parquet`)로 보여준다.
 
 ## 산출물
 

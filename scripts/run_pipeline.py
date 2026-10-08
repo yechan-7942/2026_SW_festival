@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.access.two_sfca import save_accessibility  # noqa: E402
-from src.gap.score import save_gap_scores  # noqa: E402
+from src.gap.score import save_gap_robustness, save_gap_scores  # noqa: E402
 from src.ingest import kosis  # noqa: E402
 from src.ingest.datagokr import load_facilities  # noqa: E402
 from src.policy.analysis_report import save_analysis_report  # noqa: E402
@@ -25,6 +25,7 @@ NOT_YET_IMPLEMENTED = {
     "nlp": "MDIS 다문화가족실태조사 원본 확보 전까지 수요 신호 추출 불가 — reports/m4_nlp_substitute.md",
 }
 IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "policy", "viz", "report"]
+LLM_STAGES = {"policy", "report"}  # NVIDIA build API 호출 — 실행할 때마다 결과가 달라지고 무료 크레딧을 쓴다
 ALL_STAGES = [*IMPLEMENTED_STAGES, *NOT_YET_IMPLEMENTED.keys()]
 
 
@@ -60,6 +61,8 @@ def run_gap() -> None:
     print("[gap] 격차 점수(Gap Score) 계산...")
     path = save_gap_scores()
     print(f"  저장: {path}")
+    print("[gap] 임계거리 통합 순위 안정성·수요/접근성 유형...")
+    print(f"  저장: {save_gap_robustness()}")
 
 
 def run_policy() -> None:
@@ -94,9 +97,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="포항 외국인 주민 생활 인프라 격차 진단 파이프라인")
     parser.add_argument("--config", default="config/pipeline.yaml")
     parser.add_argument("--stage", default="all", choices=["all", *ALL_STAGES])
+    parser.add_argument(
+        "--skip-llm",
+        action="store_true",
+        help="--stage all 에서 LLM API를 부르는 policy·report 단계를 건너뛴다 (기존 정책 카드·보고서 보존)",
+    )
     args = parser.parse_args()
 
     stages = ALL_STAGES if args.stage == "all" else [args.stage]
+    if args.skip_llm:
+        stages = [s for s in stages if s not in LLM_STAGES]
 
     for stage in stages:
         print(f"\n=== {stage} ===")

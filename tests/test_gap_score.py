@@ -133,3 +133,25 @@ def test_gap_score_sensitivity_covers_configured_thresholds():
     for threshold_km in thresholds:
         assert f"{threshold_km}km_gap_score" in sens.columns
         assert f"{threshold_km}km_rank" in sens.columns
+
+
+def test_classify_gap_type_splits_by_median_into_four_types():
+    from src.gap.score import GAP_TYPE_LABELS, classify_gap_type
+
+    demand = pd.Series([0.9, 0.9, 0.1, 0.1, 0.5], index=list("ABCDE"))
+    access = pd.Series([0.1, 0.9, 0.1, 0.9, 0.5], index=list("ABCDE"))
+    result = classify_gap_type(demand, access)
+    assert result["A"] == GAP_TYPE_LABELS[(True, True)]
+    assert result["B"] == GAP_TYPE_LABELS[(True, False)]
+    assert result["C"] == GAP_TYPE_LABELS[(False, True)]
+    assert result["D"] == GAP_TYPE_LABELS[(False, False)]
+
+
+def test_build_gap_robustness_has_rank_stats_for_29_dong():
+    from src.gap.score import build_gap_robustness
+
+    result = build_gap_robustness()
+    assert len(result) == 29
+    assert (result["rank_spread"] >= 0).all()
+    assert result["gap_type"].notna().all()
+    assert result["rank_mean"].between(1, 29).all()
