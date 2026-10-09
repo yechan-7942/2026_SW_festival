@@ -1,6 +1,6 @@
 # 발표자료 수정 초안
 
-> **2026-10-08**: 이 초안을 현재 산출물 기준으로 구현한 슬라이드 7장을 `outputs/presentation_revised.pptx`로 만들었다(`uv run --with python-pptx python scripts/build_presentation.py`, 수치는 parquet에서 읽음). 아래 초안의 구체 수치(슬라이드 7의 점수 등)는 수요점 교체 전 값이므로 pptx를 기준으로 삼을 것. PowerPoint에서 열어 레이아웃·글꼴을 한 번 확인하고 기존 디자인 템플릿에 옮겨 쓰면 된다.
+> **2026-10-09**: 이 초안을 반영한 발표자료 완성본(13장)을 `outputs/presentation_final.pptx`와 같은 모양의 `outputs/presentation_final.pdf`로 만들었다(`uv run --with python-pptx --with matplotlib python scripts/build_presentation.py` 후 PowerPoint에서 PDF로 내보냄). 표지·문제 정의·Q&A까지 편집 가능한 도형으로 다시 그렸고, 수치와 지도는 parquet에서 읽는다. 아래 초안의 구체 수치는 수요점 교체 전 값이므로 완성본을 기준으로 삼을 것.
 
 기존 PDF(`포항 외국인 주민 인프라 격차 진단 발표자료.pdf`, 9월 2일자)에서 실제 구현과 어긋나는 슬라이드만 골라 새 내용을 잡았다. PPTX 원본이 없어 직접 못 고치니, 여기 내용을 슬라이드 툴에 옮겨 쓰면 된다. 그대로 둬도 되는 슬라이드(1. 표지, 2. 문제 정의, 10. Q&A)는 생략했다.
 
