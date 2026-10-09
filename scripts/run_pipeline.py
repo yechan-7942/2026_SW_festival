@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.access.two_sfca import save_accessibility  # noqa: E402
 from src.gap.score import save_gap_robustness, save_gap_scores  # noqa: E402
+from src.gap.siting import save_siting  # noqa: E402
 from src.ingest import kosis  # noqa: E402
 from src.ingest.datagokr import load_facilities  # noqa: E402
 from src.policy.analysis_report import save_analysis_report  # noqa: E402
@@ -24,7 +25,7 @@ from src.viz.heatmap import save_figures  # noqa: E402
 NOT_YET_IMPLEMENTED = {
     "nlp": "MDIS 다문화가족실태조사 원본 확보 전까지 수요 신호 추출 불가 — reports/m4_nlp_substitute.md",
 }
-IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "policy", "viz", "report"]
+IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "siting", "policy", "viz", "report"]
 LLM_STAGES = {"policy", "report"}  # NVIDIA build API 호출 — 실행할 때마다 결과가 달라지고 무료 크레딧을 쓴다
 ALL_STAGES = [*IMPLEMENTED_STAGES, *NOT_YET_IMPLEMENTED.keys()]
 
@@ -71,6 +72,11 @@ def run_gap() -> None:
     print(f"  저장: {path}")
     print("[gap] 임계거리 통합 순위 안정성·수요/접근성 유형...")
     print(f"  저장: {save_gap_robustness()}")
+
+
+def run_siting() -> None:
+    print("[siting] 시설 입지 시뮬레이션 — 가상 시설 1곳의 효과를 29개 동 후보지로 비교...")
+    print(f"  저장: {save_siting()}")
 
 
 def run_policy() -> None:
@@ -128,6 +134,8 @@ def main() -> None:
             run_access()
         elif stage == "gap":
             run_gap()
+        elif stage == "siting":
+            run_siting()
         elif stage == "policy":
             run_policy()
         elif stage == "viz":

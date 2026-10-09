@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.gap.siting import dashboard_payload
 from src.viz.heatmap import BAR_HUE, FIGURES_DIR, GAP_SCORES_PATH, load_geo_gap_scores
 
 ADMIN_UNITS_PATH = "data/processed/admin_units.parquet"
@@ -92,9 +93,11 @@ def build_dashboard_html(fac_type: str = "보건의료") -> str:
     avg_score = sum(r["gap_score"] for r in records) / len(records)
     heatmap_src = _embed_png(HEATMAP_PNG_PATH)
     data_json = json.dumps(records, ensure_ascii=False)
+    siting_json = json.dumps(dashboard_payload(), ensure_ascii=False)
 
     return _TEMPLATE.format(
         data_json=data_json,
+        siting_json=siting_json,
         heatmap_src=heatmap_src,
         n_dongs=len(records),
         top_name=top["adm_nm"],
@@ -230,6 +233,19 @@ _TEMPLATE = """<!doctype html>
     border-left: 3px solid var(--bar-hue); padding: 6px 10px; border-radius: 0 6px 6px 0;
   }}
   .empty-state {{ color: var(--text-muted); font-size: 13px; padding: 20px 0; display: none; }}
+  .sim-controls {{ display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; font-size: 13px; }}
+  .sim-controls select {{
+    padding: 8px 10px; font-size: 14px; border: 1px solid var(--gridline); border-radius: 8px;
+    background: var(--surface-1); color: var(--text-primary);
+  }}
+  .sim-summary {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }}
+  .sim-row {{ display: grid; grid-template-columns: 90px 1fr 170px; align-items: center; gap: 10px; padding: 3px 0; font-size: 13px; }}
+  .sim-track {{ background: var(--gridline); border-radius: 4px; height: 18px; position: relative; }}
+  .sim-before {{ position: absolute; left: 0; top: 0; height: 18px; border-radius: 4px; background: var(--text-muted); opacity: .45; }}
+  .sim-after {{ position: absolute; left: 0; top: 4px; height: 10px; border-radius: 3px; background: var(--bar-hue); }}
+  .sim-row.chosen .name {{ font-weight: 700; }}
+  .sim-delta {{ font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: right; }}
+  .sim-note {{ font-size: 12px; color: var(--text-secondary); margin-top: 10px; line-height: 1.7; }}
 </style>
 </head>
 <body>
@@ -273,6 +289,23 @@ _TEMPLATE = """<!doctype html>
     <h2>행정동별 정책 카드</h2>
     <div class="cards" id="card-grid"></div>
     <div class="empty-state" id="empty-cards">검색 결과가 없습니다.</div>
+  </section>
+
+  <section>
+    <h2>시설 입지 시뮬레이션 — 의료시설을 한 곳 두면?</h2>
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">가상의 의료시설 1곳을 선택한 행정동에 두고 격차 점수를 다시 계산한 결과다(3km 기준). 회색 막대가 현재, 파란 막대가 시설을 둔 뒤다.</p>
+    <div class="sim-controls">
+      <label>설치 후보 <select id="sim-site"></select></label>
+      <span>규모(의사 수)</span>
+      <div class="view-toggle" id="sim-cap" style="margin:0"></div>
+    </div>
+    <div class="sim-summary" id="sim-summary"></div>
+    <div id="sim-bars"></div>
+    <div class="sim-note" id="sim-consensus"></div>
+    <div class="sim-note">
+      · 격차 점수의 절반은 외국인 비율(수요)이라 시설로 줄일 수 없다 — 외국인 비율이 가장 높은 곳은 시설을 많이 둬도 점수가 0.5 아래로 내려가지 않는다.<br>
+      · 후보지는 동 단위(그 동네 어딘가)이고 직선거리 기준이다. 부지·인력·예산·언어 지원은 반영하지 않았다.
+    </div>
   </section>
 
   <section>
@@ -359,8 +392,52 @@ document.getElementById('search').addEventListener('input', (e) => {{
   renderCards(q);
 }});
 
+const SITING = {siting_json};
+let simCap = SITING.capacities[0];
+
+function renderSim() {{
+  const site = document.getElementById('sim-site').value;
+  const after = SITING.after[String(simCap)][site];
+  const before = SITING.gap_before;
+  const totalF = SITING.foreign.reduce((a, b) => a + b, 0);
+  const wMean = arr => arr.reduce((acc, v, i) => acc + v * SITING.foreign[i], 0) / totalF;
+  const idx = SITING.names.indexOf(site);
+  const rankOf = (arr, i) => 1 + arr.filter(v => v > arr[i]).length;
+  document.getElementById('sim-summary').innerHTML = `
+    <div class="stat-tile"><div class="label">${{escapeHtml(site)}} 격차 점수</div><div class="value">${{before[idx].toFixed(3)}} → ${{after[idx].toFixed(3)}}</div></div>
+    <div class="stat-tile"><div class="label">${{escapeHtml(site)}} 순위</div><div class="value">${{rankOf(before, idx)}}위 → ${{rankOf(after, idx)}}위</div></div>
+    <div class="stat-tile"><div class="label">외국인 가중 평균 격차</div><div class="value">${{wMean(before).toFixed(4)}} → ${{wMean(after).toFixed(4)}}</div></div>`;
+  const order = SITING.names.map((n, i) => i).sort((a, b) => before[b] - before[a]);
+  document.getElementById('sim-bars').innerHTML = order.map(i => {{
+    const delta = after[i] - before[i];
+    return `<div class="sim-row ${{i === idx ? 'chosen' : ''}}">
+      <div class="name">${{escapeHtml(SITING.names[i])}}</div>
+      <div class="sim-track"><div class="sim-before" style="width:${{(before[i] * 100).toFixed(1)}}%"></div><div class="sim-after" style="width:${{(after[i] * 100).toFixed(1)}}%"></div></div>
+      <div class="sim-delta">${{before[i].toFixed(3)}} → ${{after[i].toFixed(3)}}${{Math.abs(delta) < 0.0005 ? '' : ' (' + delta.toFixed(3) + ')'}}</div>
+    </div>`;
+  }}).join('');
+}}
+
+function initSim() {{
+  const sel = document.getElementById('sim-site');
+  sel.innerHTML = SITING.consensus.map((c, k) =>
+    `<option value="${{escapeHtml(c.adm_nm)}}">${{escapeHtml(c.adm_nm)}}${{k < 3 ? ' (추천 ' + (k + 1) + '위)' : ''}}</option>`).join('');
+  sel.addEventListener('change', renderSim);
+  const capBox = document.getElementById('sim-cap');
+  capBox.innerHTML = SITING.capacities.map(c => `<button data-cap="${{c}}" class="${{c === simCap ? 'active' : ''}}">${{c}}명</button>`).join('');
+  capBox.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {{
+    simCap = Number(b.dataset.cap);
+    capBox.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+    renderSim();
+  }}));
+  const top = SITING.consensus.slice(0, 3).map(c => `${{escapeHtml(c.adm_nm)}}(임계거리 1/3/5km 순위 평균 ${{c.rank_mean}}, 최악 ${{c.rank_worst}}위)`).join(', ');
+  document.getElementById('sim-consensus').innerHTML = '임계거리 1/3/5km를 종합한 상위 후보: ' + top + '.';
+  renderSim();
+}}
+
 renderBars('');
 renderCards('');
+initSim();
 </script>
 </body>
 </html>

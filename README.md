@@ -28,6 +28,7 @@
 | M3. 격차 점수 | 완료 (가중치 0.5/0.5로 GM 검수·확정, 2026-09-22) |
 | M4. NLP 수요 신호 추출 | 대체 완료 — MDIS 포기, 경상북도(포항 속한 1권역)·여가부(전국) 결과보고서 수치를 LLM 정책 카드의 배경 근거로 주입(`reports/m4_nlp_substitute.md`). 행정동별 차등 신호는 아님 |
 | M5. 시각화 + LLM 리포트 | 완료 — 히트맵·랭킹·29개 정책 카드를 `outputs/dashboard.html` 통합 대시보드 하나로 묶음(`reports/m5_policy_llm.md`). 카드 내용은 사람 검수 권장 |
+| M7. 시설 입지 시뮬레이션 | 완료 — 가상 의료시설 1곳을 29개 동 후보지에 두고 격차 변화를 비교(`--stage siting`, `reports/m7_siting.md`). 1·3·5km 모두 구룡포읍·호미곶면·장기면이 상위 후보. 시설로 줄일 수 있는 건 접근성 절반뿐이라 구룡포읍 격차는 0.5 밑으로 못 내려감 |
 | LLM 분석 보고서 | 완료 — `--stage report`가 파이프라인 산출물로 `outputs/analysis_report.md/.pdf`를 자동 생성. 본문만 LLM이 쓰고, 수치·구 소속은 코드로 대조, 사실 주장은 LLM으로 재대조, 남은 지적은 "검수 필요" 상자로 표시. 표·지도는 코드 생성 |
 
 몇 가지 결정한 것들:
@@ -91,6 +92,7 @@ uv run python scripts/m0_audit.py --config config/pipeline.yaml     # 데이터 
 uv run python scripts/run_pipeline.py --stage all                   # 전체 실행 (정책 카드 29개도 API로 재생성·덮어씀)
 uv run python scripts/run_pipeline.py --stage all --skip-llm        # LLM 호출(policy·report) 없이 나머지만 — 기존 카드·보고서 보존
 uv run python scripts/run_pipeline.py --stage access                # 특정 단계만
+uv run python scripts/run_pipeline.py --stage siting                # 시설 입지 시뮬레이션 (가상 시설 1곳의 효과 비교)
 uv run python scripts/run_pipeline.py --stage report                # LLM 분석 보고서 (outputs/analysis_report.pdf)
 ```
 
