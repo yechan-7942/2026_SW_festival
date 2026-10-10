@@ -25,7 +25,7 @@
 | M0. 데이터 확보 가능한지 확인 | 조건부 통과 |
 | M1. 수집·정제 파이프라인 | 완료 |
 | M2. 2SFCA 접근성 프로토타입 | 완료 (의료 단일 지수로 확정) |
-| M3. 격차 점수 | 완료 (가중치 0.5/0.5로 GM 검수·확정, 2026-09-22) |
+| M3. 격차 점수 | 계산 완료 (가중치 0.5/0.5는 중립 기본값, GM 검토 기록 필요) |
 | M4. NLP 수요 신호 추출 | 대체 완료 — MDIS 포기, 경상북도(포항 속한 1권역)·여가부(전국) 결과보고서 수치를 LLM 정책 카드의 배경 근거로 주입(`reports/m4_nlp_substitute.md`). 행정동별 차등 신호는 아님 |
 | M5. 시각화 + LLM 리포트 | 완료 — 히트맵·랭킹·29개 정책 카드를 `outputs/dashboard.html` 통합 대시보드 하나로 묶음(`reports/m5_policy_llm.md`). 카드 내용은 사람 검수 권장 |
 | M7. 시설 입지 시뮬레이션 | 완료 — 가상 의료시설 1곳을 29개 동 후보지에 두고 격차 변화를 비교(`--stage siting`, `reports/m7_siting.md`). 1·3·5km 모두 구룡포읍·호미곶면·장기면이 상위 후보. 시설로 줄일 수 있는 건 접근성 절반뿐이라 구룡포읍 격차는 0.5 밑으로 못 내려감 |
@@ -36,7 +36,7 @@
 - 2SFCA는 임계거리에 따라 순위가 꽤 흔들려서, 값 하나로 결론 안 내리고 여러 임계값으로 돌려본다
 - 그래도 격차 상위권(구룡포읍·호미곶면·장기면·대송면)은 임계거리 바꿔도 계속 상위권으로 나옴
 - MDIS 다문화가족실태조사 원자료는 원격접근서비스(비용 발생, 로컬 다운로드 불가)라 포기 — 여가부 결과보고서(2차자료)로 대체 확보함. 연구진도 "시도별 분석은 시도 안 함"이라 명시할 만큼 지역 분해가 안 되는 자료라, 행정동별 수치가 아니라 정책 리포트용 전국 배경 근거로만 씀 (2026-09-21)
-- 격차 점수 가중치는 GM 검수 결과 0.5/0.5(중립값)로 확정 — 상위 4개 동은 수요 가중치 0.4 이상이면 임계거리 1/3/5km 어디서든 5위 안에 남아서 리스크가 낮다고 판단 (2026-09-22; 접근성에 70% 이상 무게를 두면 일부 밀려남 — `reports/m6_validation.md`)
+- 격차 점수 가중치 0.5/0.5는 중립 기본값이다. 상위 4개 동은 수요 가중치 0.4 이상이면 임계거리 1/3/5km 어디서든 5위 안에 남는다. GM의 실제 판단·수정 기록은 아직 필요하다 (`reports/m6_validation.md`, `reports/collaboration_evidence.md`).
 
 자세한 근거는 `reports/` 안에 마일스톤별로 정리해뒀고, 다 합친 최종본은 `reports/research_report.md`(`.pdf`가 제출본).
 
@@ -44,7 +44,7 @@
 
 ## 데이터
 
-크롤링·비공개 API 안 쓰고 전부 공개 파일만 쓴다.
+크롤링·비공개 API는 쓰지 않는다. 원본 파일과 공개 API를 사용한다.
 
 | 데이터 | 출처 | 확보 |
 |---|---|---|
@@ -55,7 +55,7 @@
 | 의료기관 현황 | 심평원 | ✅ |
 | 상가정보 | 소상공인시장진흥공단 | ✅ (금융업 제외) |
 
-원본 데이터는 `data/raw/`에 두는데 gitignore돼있고, 대신 `data/MANIFEST.yaml`에 출처·다운로드 날짜·해시 적어둔다.
+원본 파일은 gitignore된 `data/raw/`에 두고 `data/MANIFEST.yaml`에 출처·해시를 기록한다. 일부 다운로드 날짜와 직접 URL은 확인되지 않았다. API 응답 원본은 보관되지 않았고, 저장소의 `data/processed/`가 오프라인 계산용 입력 스냅샷이다.
 
 ---
 
@@ -94,11 +94,22 @@ uv run python scripts/run_pipeline.py --stage all --skip-llm        # LLM 호출
 uv run python scripts/run_pipeline.py --stage access                # 특정 단계만
 uv run python scripts/run_pipeline.py --stage siting                # 시설 입지 시뮬레이션 (가상 시설 1곳의 효과 비교)
 uv run python scripts/run_pipeline.py --stage report                # LLM 분석 보고서 (outputs/analysis_report.pdf)
+uv run python scripts/reproduce_offline.py --output-dir /tmp/pohang-repro  # 처리 입력에서 접근성·격차·입지 재생성
+uv run python scripts/build_pilot_review.py --overwrite             # 5개 동 카드 비교 평가 양식
+uv run python scripts/audit_policy_cards.py                         # 카드 수치·조사 범위 감사
 ```
 
 의존성은 `pyproject.toml`이 기준이다(`geopandas`, `shapely`, `pyproj`, `scipy`, `pandas`, `pyarrow`, `plotly`, `kaleido`, `openai`(NVIDIA build 호출용), `markdown` 등). 파이썬 3.11 이상.
 
 테스트는 `uv run pytest`. 시설 데이터를 만드는 테스트(`tests/test_facilities.py`)는 심평원 xlsx 로딩과 상가정보 API 호출이 있어 느리다(수 분). 빠른 확인은 `uv run pytest --ignore=tests/test_facilities.py`.
+
+### 오프라인 재현과 파일럿 평가
+
+`reproduce_offline.py`는 저장소에 포함된 처리 입력(`admin_units`, `facilities`, `pop_centroids`)을 빈 출력 폴더로 복사해 접근성·격차·입지 결과를 재계산한다. 수집·전처리·LLM 단계는 포함하지 않는다. `reproduction.json`에 입력 해시와 기존 결과 대비 차이를 남긴다. `--with-viz`를 주면 지도·대시보드도 출력 폴더 안에 생성한다(로컬 이미지 렌더러 필요). 이 절차는 원본 데이터부터 재수집하는 증명이 아니다.
+
+`config/pilot.yaml`의 5개 동(구룡포읍·장기면·호미곶면·대송면·동해면)은 정책 카드 평가 대상이다. 각 동 안의 의료시설은 현재 37건이지만, 2SFCA 계산은 주변 공급을 포함하도록 포항 908건 전체를 유지한다. `build_pilot_review.py`는 기존 LLM 카드와 규칙 카드를 섞은 `review_form.csv`를 만들고, 정답 키는 Git 제외 대상인 `data/interim/pilot_review_answer_key.csv`에 별도로 저장한다. 평가자에게는 검토 양식만 전달한다. 평가자는 근거 일치·지역 적합·실행 가능성을 각각 1~5점으로 기록한다. 평가 기준은 `reports/pilot_evaluation.md`에 있다. 평가 결과는 아직 없다.
+
+`audit_policy_cards.py`는 프롬프트에 없는 숫자와 조사 범위 오표기를 찾아 `reports/policy_card_audit.md`에 기록한다. `--fix-scope-label`은 확인된 문구 `경북 1권역`만 `경북 전체`로 고친다. 자동 점검은 인용 문맥의 의미나 정책 실행 가능성을 판정하지 않는다.
 
 ---
 

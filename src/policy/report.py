@@ -148,7 +148,7 @@ def build_prompt(adm_nm: str, rank: int, gap_score: float, fac_type_label: str, 
         f"입니다(격차 점수 {gap_score:.2f}, 0~1 범위, 1에 가까울수록 격차가 심각).\n"
         f"이 행정동에 사는 외국인 주민을 위한 {fac_type_label} 접근성 정책을 2~3문장으로 제안해줘.\n"
         f"규칙:\n"
-        f'1. 반드시 "[근거] 경북 1권역 조사에 따르면 ..."처럼 "[근거]" 뒤에 같은 줄에서 이어서 쓰는 한 줄을 넣고, '
+        f'1. 반드시 "[근거] 경북 전체 조사에 따르면 ..."처럼 "[근거]" 뒤에 같은 줄에서 이어서 쓰는 한 줄을 넣고, '
         f"위에 제공된 수치 중에서만 인용해. 제공되지 않은 수치는 절대 지어내지 마. "
         f"조사 수치는 조사 출처로, 이 행정동의 외국인 수·비율은 \"포항시 {adm_nm}의 외국인 주민 비율\"처럼 "
         f"행정동 사실로 구분해서 써(행정동 사실을 조사 결과인 것처럼 쓰지 마).\n"
@@ -157,7 +157,7 @@ def build_prompt(adm_nm: str, rank: int, gap_score: float, fac_type_label: str, 
         f"다른 행정동에도 그대로 붙일 수 있는 일반적인 문장(이동 진료소+다국어 안내서)만 쓰지 마.\n"
         f"4. 처방전 없이 약을 주거나 판매하는 방안, 의료법·약사법에 어긋나는 방안은 제안하지 마.\n"
         f"5. 영어 등 외국어 단어를 섞지 말고 한국어로만 써(예: bilingual 금지).\n"
-        f"6. 경북 1권역 수치는 포항 단독 수치가 아니니 \"경북 1권역 조사\"라고 밝혀서 인용해."
+        f"6. 위 경북 조사 수치는 경북 전체 집계이니 \"경북 전체 조사\"라고 밝혀서 인용해. \"경북 1권역\"이나 포항 단독 수치라고 부르지 마."
     )
 
 
@@ -228,6 +228,8 @@ def generate_policy_card(
             last_error = f"finish_reason={choice.finish_reason!r} (응답이 완성되지 않음)"
         elif "[근거]" not in content:
             last_error = "'[근거]' 줄이 없음"
+        elif "경북 1권역" in content:
+            last_error = "경북 전체 집계 수치를 1권역 수치로 잘못 표시함"
         elif hangul_ratio < MIN_HANGUL_RATIO:
             last_error = f"한글 비율이 너무 낮음({hangul_ratio:.0%}) — reasoning 누출 의심"
         elif not re.search(r"^\s*\[근거\][^\n]{10,}", content, re.MULTILINE):

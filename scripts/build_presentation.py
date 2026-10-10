@@ -305,7 +305,7 @@ def main():
     terms = [
         ("users", TEAL, "외국인 비율", "외국인 주민 수 ÷ 동 인구"),
         ("hospital", CORAL, "의료 접근성 (2SFCA)", "주민 1명이 이용할 수 있는 의사 수를 거리 3km 안에서 계산 · 1km·5km로도 비교"),
-        ("scale", SLATE, "가중치 0.5 : 0.5", "어느 쪽을 더 크게 볼 근거가 없어 같게 둠 (GM 검수)"),
+        ("scale", SLATE, "가중치 0.5 : 0.5", "검토 전 중립 기본값 · 민감도 분석으로 함께 확인"),
     ]
     for i, (ic, color, head, body) in enumerate(terms):
         x = 0.7 + i * 4.06
@@ -315,7 +315,7 @@ def main():
 
     # 6. 정책 카드 검사
     s = content(prs, "LLM 가드레일", "정책 카드는 검사를 통과해야 나갑니다", 6)
-    flow = [("점수·동 정보·조사 수치", TEAL_SOFT, NAVY), ("LLM 초안", TEAL_SOFT, NAVY), ("자동 검사", TEAL, WHITE), ("GM 검수", SOFT, NAVY)]
+    flow = [("점수·동 정보·조사 수치", TEAL_SOFT, NAVY), ("LLM 초안", TEAL_SOFT, NAVY), ("자동 검사", TEAL, WHITE), ("GM 검토 예정", SOFT, NAVY)]
     for i, (label, fill, color) in enumerate(flow):
         w = 2.1 if i == 0 else 1.4
         x = 0.7 if i == 0 else 0.7 + 2.1 + 0.35 + (i - 1) * 1.75
@@ -390,7 +390,7 @@ def main():
     roles = [
         ("code", "컴퓨터공학 심화", ["공공데이터 수집·정제 파이프라인", "공간데이터(GIS) 처리", "격차 지도·대시보드"]),
         ("robot", "AI 융합", ["2SFCA 접근성 계산", "LLM 정책 카드 생성", "출력 자동 검사·재작성"]),
-        ("globe", "글로벌 매니지먼트", ["문제 정의", "가중치 설계·검수", "정책 타당성 검토"]),
+        ("globe", "글로벌 매니지먼트", ["문제 정의", "가중치 검토 예정", "정책 타당성 검토 예정"]),
     ]
     for i, (ic, head, items) in enumerate(roles):
         x = 0.7 + i * 4.06
@@ -398,7 +398,7 @@ def main():
         icon_badge(s, ic, x + 0.4, 2.35, 0.9)
         txt(s, x + 0.4, 3.55, 3.1, 0.5, [(head, 21, True, NAVY)], after=0)
         txt(s, x + 0.4, 4.2, 3.1, 1.5, [(f"· {t}", 15, False, SLATE) for t in items], after=7)
-    txt(s, 0.7, 6.15, 11.93, 0.5, [[("코드가 낸 결과를 ", 16, False, SLATE), ("정책 전공이 검토", 16, True, TEAL), ("하는 구조로 역할을 나눴습니다", 16, False, SLATE)]],
+    txt(s, 0.7, 6.15, 11.93, 0.5, [[("코드가 낸 결과를 ", 16, False, SLATE), ("정책 전공이 검토할", 16, True, TEAL), (" 계획입니다 · 실제 검토 기록은 아직 필요합니다", 16, False, SLATE)]],
         align=PP_ALIGN.CENTER, after=0)
 
     # 10. 결과물

@@ -44,12 +44,14 @@ README 메모에 있듯 처음엔 Claude API(`anthropic` 패키지, `pyproject.t
 
 ## 구조
 
-- `src/policy/context.py` — M4 대체 데이터(여가부 전국 + 경상북도 1권역 결과보고서, `reports/m4_nlp_substitute.md` 참고)를 상수로 갖고 있다가 `build_context_block(fac_type)`로 프롬프트에 붙일 텍스트를 만든다. 경북 데이터를 "배경 근거 1"로 먼저, 전국 데이터를 "배경 근거 2"로 뒤에 붙여 더 가까운 지리적 근거를 우선시하되, 각 수치가 어느 조사 출처인지 라벨을 명확히 남긴다. "포항 단독 수치 아님" caveat도 텍스트 안에 강제로 포함시켜, LLM이 이 수치를 포항 고유값처럼 서술하지 않게 한다.
+- `src/policy/context.py` — M4 대체 데이터(여가부 전국 + 경상북도 실태조사, `reports/m4_nlp_substitute.md` 참고)를 프롬프트에 붙인다. 경북 보고서에 포항이 포함된 1권역 분석이 있지만, 이 카드가 인용한 의료 이용행태·서비스 수요 수치는 경북 전체 집계다. 기존 카드가 이를 1권역 값으로 잘못 표기한 사실을 확인해, 프롬프트와 자동 가드레일을 고치고 29개 카드의 해당 출처 표현을 바로잡았다.
 - `src/policy/report.py` — `build_prompt()`가 context 블록 + 행정동의 gap_score/rank를 합쳐 프롬프트를 만들고, `generate_policy_card()`가 NVIDIA build API를 호출해 카드 1건을 만든다. `build_policy_cards()`는 `ThreadPoolExecutor(max_workers=6)`로 29개 행정동을 병렬 생성한다(순차로 하면 호출당 ~10초라 5분 가까이 걸림 — 병렬로 94초).
 
 ## 실행 결과 (2026-09-21, `data/processed/policy_cards.parquet`)
 
 `uv run python scripts/run_pipeline.py --stage policy` — 29개 행정동 전부 성공, `[근거]` 줄 누락 0건, 한자 혼입 0건.
+
+2026-10-10 재점검에서 기존 카드 29개 모두 `[근거] 경북 1권역 조사`라고 적었지만, 인용 수치는 보고서상 경북 전체 집계였다. 원자료 요약본의 보건의료 이용행태·서비스 표와 대조한 뒤 범위 문구만 `경북 전체 조사`로 수정했다. 같은 오표기 사례가 재생성되지 않도록 프롬프트 규칙과 검증 조건을 보강했다. 카드의 정책 타당성에 대한 사람 평가는 별도 파일럿 절차로 남아 있다(`reports/pilot_evaluation.md`).
 
 가드레일 보강(위 "가드레일" 절) 전 첫 실행에서는 사람 검수로 송도동 reasoning 누출 1건, 여러 실행에 걸쳐 한자 혼입 5건을 발견했다. 이후 경북 데이터를 추가해 프롬프트가 길어진 재실행에서는 **29개를 동시에 병렬 호출하니 NVIDIA build free-tier에서 503(Service Unavailable, 과부하) 에러도 실제로 났다** — `generate_policy_card()`에 API 호출 자체도 재시도 대상으로 포함시켰다(지수 백오프).
 
