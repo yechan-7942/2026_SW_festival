@@ -2,6 +2,8 @@
 
 **Infrastructure Gap Atlas & AI Policy Co-pilot**
 
+**공개 웹 대시보드: [pohang-infra-gap.vercel.app](https://pohang-infra-gap.vercel.app)**
+
 공개 데이터로 포항시 행정동별 외국인 주민의 생활 인프라 격차를 점수로 계산하고, 행정동별 정책 리포트까지 자동으로 만들어주는 프로젝트다.
 
 
