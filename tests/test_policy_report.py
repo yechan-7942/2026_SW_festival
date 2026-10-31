@@ -7,12 +7,6 @@ load_dotenv()
 
 NIM_KEY_AVAILABLE = bool(os.getenv("NVIDIA_NIM_API_KEY"))
 
-pytestmark = pytest.mark.skipif(
-    not NIM_KEY_AVAILABLE,
-    reason="NVIDIA_NIM_API_KEY가 .env에 없음 — gitignore 대상, 로컬에서만 발급 가능",
-)
-
-
 def test_build_prompt_includes_context_and_dong_info():
     from src.policy.report import build_prompt
 
@@ -32,6 +26,10 @@ def test_load_llm_config_has_required_fields():
     assert config["max_tokens"] > 0
 
 
+@pytest.mark.skipif(
+    not NIM_KEY_AVAILABLE or os.getenv("RUN_LLM_TESTS") != "1",
+    reason="실제 API 테스트는 NVIDIA_NIM_API_KEY와 RUN_LLM_TESTS=1이 필요합니다.",
+)
 def test_generate_policy_card_includes_evidence_line():
     from src.policy.report import generate_policy_card
 

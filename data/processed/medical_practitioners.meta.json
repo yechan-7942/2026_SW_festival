@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-10-24T08:12:47.956606+00:00",
+  "source": "data/raw/전국 병의원 및 약국 현황 2026.3/1.병원정보서비스(2026.3.).xlsx",
+  "source_sha256": "7fa39513aadf53595363a8d7eb3c4f5c7998efed211336c4a5f2d550711dba5b",
+  "snapshot_sha256": "dd8367ed7311239db9aee5385a66ec42ae8332585759e0110b30d27a27031470",
+  "rows": 671,
+  "recorded_practitioners": 1323.0,
+  "zero_count": 31,
+  "meaning": "심평원 원본 총의사수. 치과·한방 등 포함, 약국 제외, 0 대체 없음. 실제 진료 역량이나 이용량이 아님."
+}

@@ -263,8 +263,9 @@ def dashboard_payload(
         per_site = {}
         for adm_cd, adm_nm in zip(codes, names):
             sim = simulate_sites([adm_cd], capacity=capacity, category_large=category_large, config_path=config_path)
-            per_site[adm_nm] = [round(float(v), 4) for v in sim["gap_after"]]
-            gap_before = [round(float(v), 4) for v in sim["gap_before"]]
+            # 순위·평균을 브라우저에서 다시 계산하므로 표시할 때만 반올림한다.
+            per_site[adm_nm] = [float(v) for v in sim["gap_after"]]
+            gap_before = [float(v) for v in sim["gap_before"]]
         after[str(int(capacity))] = per_site
     consensus = consensus_ranking(rank_candidates(capacities[0], category_large, config_path))
     return {

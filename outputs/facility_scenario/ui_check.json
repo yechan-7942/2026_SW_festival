@@ -1,0 +1,8 @@
+{
+  "scenario_states": 6,
+  "rows_per_state": 29,
+  "browser_errors": [],
+  "policy_link": "passed",
+  "existing_controls": "passed",
+  "mobile_overflow": "passed"
+}

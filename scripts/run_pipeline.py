@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.access.two_sfca import save_accessibility  # noqa: E402
 from src.gap.score import save_gap_robustness, save_gap_scores  # noqa: E402
+from src.gap.scenarios import save_comparison  # noqa: E402
 from src.gap.siting import save_siting  # noqa: E402
 from src.ingest import kosis  # noqa: E402
 from src.ingest.datagokr import load_facilities  # noqa: E402
@@ -25,7 +26,7 @@ from src.viz.heatmap import save_figures  # noqa: E402
 NOT_YET_IMPLEMENTED = {
     "nlp": "MDIS 다문화가족실태조사 원본 확보 전까지 수요 신호 추출 불가 — reports/m4_nlp_substitute.md",
 }
-IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "siting", "policy", "viz", "report"]
+IMPLEMENTED_STAGES = ["ingest", "preprocess", "access", "gap", "compare", "siting", "policy", "viz", "report"]
 LLM_STAGES = {"policy", "report"}  # NVIDIA build API 호출 — 실행할 때마다 결과가 달라지고 무료 크레딧을 쓴다
 ALL_STAGES = [*IMPLEMENTED_STAGES, *NOT_YET_IMPLEMENTED.keys()]
 
@@ -75,12 +76,14 @@ def run_gap() -> None:
 
 
 def run_siting() -> None:
+    from src.policy.siting_evidence import save_siting_evidence
     print("[siting] 시설 입지 시뮬레이션 — 가상 시설 1곳의 효과를 29개 동 후보지로 비교...")
     print(f"  저장: {save_siting()}")
+    print(f"  정책 연결 시나리오: {save_siting_evidence()}")
 
 
 def run_policy() -> None:
-    print("[policy] LLM 정책 리포트 생성 (29개 행정동, NVIDIA build API 호출)...")
+    print("[policy] LLM 현장 검토용 정책 카드 생성 (29개 행정동, NVIDIA build API 호출)...")
     path = save_policy_cards()
     print(f"  저장: {path}")
 
@@ -117,6 +120,10 @@ def main() -> None:
         help="--stage all 에서 LLM API를 부르는 policy·report 단계를 건너뛴다 (기존 정책 카드·보고서 보존)",
     )
     args = parser.parse_args()
+    # 다른 단계의 저장 함수는 기본 설정을 읽는다. 지원하지 않는 설정을
+    # 조용히 무시하여 다른 조건으로 계산하는 대신 실행 전에 알려준다.
+    if args.stage != "ingest" and Path(args.config).resolve() != Path("config/pipeline.yaml").resolve():
+        parser.error("별도 --config는 현재 --stage ingest에서만 지원합니다. 다른 단계는 config/pipeline.yaml을 사용하세요.")
 
     stages = ALL_STAGES if args.stage == "all" else [args.stage]
     if args.skip_llm:
@@ -142,6 +149,8 @@ def main() -> None:
             run_viz()
         elif stage == "report":
             run_report()
+        elif stage == "compare":
+            print("비교 분석 저장:", save_comparison())
         else:
             print(f"미구현: {NOT_YET_IMPLEMENTED[stage]}")
 
