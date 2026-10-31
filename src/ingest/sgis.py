@@ -29,6 +29,17 @@ def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
 _token_cache: dict[str, str] = {}
 
 
+def _request_json(url: str, params: dict, operation: str) -> dict:
+    # SGIS는 인증값을 쿼리에 넣는다. requests 예외를 그대로 출력하면
+    # 전체 URL의 키·토큰이 로그에 남으므로 원래 예외 체인도 숨긴다.
+    try:
+        response = requests.get(url, params=params, timeout=(10, 30))
+        response.raise_for_status()
+        return response.json()
+    except (requests.RequestException, ValueError):
+        raise RuntimeError(f"SGIS {operation} 요청 실패: 연결·응답 상태를 확인하세요. 인증값은 로그에서 생략합니다.") from None
+
+
 def get_access_token(force_refresh: bool = False) -> str:
     if not force_refresh and "token" in _token_cache:
         return _token_cache["token"]
@@ -36,11 +47,11 @@ def get_access_token(force_refresh: bool = False) -> str:
     consumer_secret = os.getenv("SGIS_CONSUMER_SECRET")
     if not consumer_key or not consumer_secret:
         raise ValueError("SGIS_CONSUMER_KEY/SGIS_CONSUMER_SECRET이 .env에 설정되어 있지 않습니다.")
-    response = requests.get(
+    data = _request_json(
         AUTH_URL,
-        params={"consumer_key": consumer_key, "consumer_secret": consumer_secret},
+        {"consumer_key": consumer_key, "consumer_secret": consumer_secret},
+        "인증",
     )
-    data = response.json()
     if data.get("errCd") != 0:
         raise RuntimeError(f"SGIS 인증 실패: {data.get('errMsg')}")
     token = data["result"]["accessToken"]
@@ -49,16 +60,16 @@ def get_access_token(force_refresh: bool = False) -> str:
 
 
 def _request_boundary(sigungu_cd: str, year: str, token: str) -> dict:
-    response = requests.get(
+    return _request_json(
         BOUNDARY_URL,
-        params={
+        {
             "accessToken": token,
             "year": year,
             "adm_cd": sigungu_cd,
             "low_search": 1,
         },
+        "경계 조회",
     )
-    return response.json()
 
 
 def fetch_admin_boundaries(sigungu_codes: list[str], year: str, access_token: str | None = None) -> gpd.GeoDataFrame:

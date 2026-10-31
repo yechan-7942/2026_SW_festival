@@ -1,18 +1,19 @@
 """시설 추가 시나리오의 6개 상태·정책 연결·브라우저 오류 검증 및 화면 샘플."""
+import argparse
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 
-def main():
-    target = Path('outputs/facility_scenario')
+def main(url=None, output_dir='outputs/facility_scenario'):
+    target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     errors = []
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless=True)
         page = browser.new_page(viewport={'width': 1440, 'height': 1050}, device_scale_factor=1)
         page.on('pageerror', lambda error: errors.append(str(error)))
-        page.goto((Path.cwd() / 'outputs/dashboard.html').as_uri(), wait_until='load')
+        page.goto(url or (Path.cwd() / 'outputs/dashboard.html').as_uri(), wait_until='load')
         assert '구룡포읍' in page.locator('#facility-selection').inner_text()
         for kind in ['hospital', 'pharmacy']:
             page.locator('#facility-kind').select_option(kind)
@@ -43,10 +44,15 @@ def main():
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
         browser.close()
     result = {'scenario_states': 6, 'rows_per_state': 29, 'browser_errors': errors,
+              'target': url or 'outputs/dashboard.html',
               'policy_link': 'passed', 'existing_controls': 'passed', 'mobile_overflow': 'passed'}
     (target / 'ui_check.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
     print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--url', help='지정하지 않으면 로컬 대시보드 검사')
+    parser.add_argument('--output-dir', default='outputs/facility_scenario')
+    args = parser.parse_args()
+    main(args.url, args.output_dir)

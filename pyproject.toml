@@ -30,3 +30,5 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+# 외부 API 실패 시 긴 traceback이 인증 인자 값을 출력하지 않도록 기본 출력을 제한한다.
+addopts = "--tb=short"

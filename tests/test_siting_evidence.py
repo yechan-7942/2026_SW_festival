@@ -52,3 +52,19 @@ def test_policy_link_preserves_facts_and_makes_complement_conditional(evidence):
     assert '면담에서 언어·예약·이동 지원의 필요가 확인될 경우' in result
     assert '시설 필요 수나 설치 권고를 산정한 결과가 아닙니다' in result
     assert f"{selected_case(evidence)['rows'][0]['access_after']:.8f}" in result
+
+
+def test_evidence_works_from_an_input_only_reproduction_directory(tmp_path, monkeypatch):
+    import hashlib
+    from pathlib import Path
+    from src.policy import siting_evidence
+
+    root = Path.cwd()
+    for name in ['config', 'data']:
+        (tmp_path / name).symlink_to(root / name, target_is_directory=True)
+    monkeypatch.chdir(tmp_path)
+    assert not Path('src').exists()
+    result = build_siting_evidence()
+    assert result['selected']['adm_nm'] == '구룡포읍'
+    assert result['source_sha256']['src/policy/siting_evidence.py'] == hashlib.sha256(
+        Path(siting_evidence.__file__).read_bytes()).hexdigest()

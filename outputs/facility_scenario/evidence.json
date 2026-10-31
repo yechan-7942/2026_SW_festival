@@ -29,7 +29,7 @@
     "data/processed/pop_centroids.parquet": "edc62b2d7ec8d15d8cfc3fa39c2e42ee9a25e28ecac3c857a02ffe29bcd4601d",
     "data/processed/gap_scores.parquet": "9a6e5d44e45d2ff01a58448c4314702cdef75e64694c0478e2c031e556ac191c",
     "data/processed/policy_cards.parquet": "59f66f793349e6d063f13c16f29d026ce103d6ea07c1a7a85eb9297614c1b355",
-    "src/policy/siting_evidence.py": "645e13bf1820f0639fb8e505dc64f4fef7432433855ae765327a808c53847e80"
+    "src/policy/siting_evidence.py": "f86c95a6f7807fcb7b43cd5818c486c5f1cf46c5ea7b53fb608a08c459573d82"
   },
   "cases": [
     {

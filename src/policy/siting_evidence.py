@@ -59,8 +59,10 @@ def build_siting_evidence(config_path="config/pipeline.yaml") -> dict:
                           "rows": json.loads(rows.to_json(orient="records", force_ascii=False, double_precision=15))})
     source_paths = ["config/pipeline.yaml", "config/weights.yaml", "data/processed/facilities.parquet",
                     "data/processed/admin_units.parquet", "data/processed/pop_centroids.parquet",
-                    "data/processed/gap_scores.parquet", "data/processed/policy_cards.parquet",
-                    "src/policy/siting_evidence.py"]
+                    "data/processed/gap_scores.parquet", "data/processed/policy_cards.parquet"]
+    source_hashes = {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in source_paths}
+    # 재현 작업은 입력만 복사한 다른 폴더에서 실행한다. 구현은 실제 import된 파일을 읽는다.
+    source_hashes["src/policy/siting_evidence.py"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     return {"version": "siting-evidence-v1", "selected": {"adm_cd": selected.adm_cd, "adm_nm": selected.adm_nm,
             "rank": int(reference.loc[selected.adm_cd, "rank"]), "gap_score": float(gaps[demand.adm_cd.eq(selected.adm_cd)][0]),
             "pop_foreign": int(selected.pop_foreign), "pop_total": int(selected.pop_total)},
@@ -70,7 +72,7 @@ def build_siting_evidence(config_path="config/pipeline.yaml") -> dict:
             "supply_totals": {"hospital": float(supply.loc[supply.fac_type.ne('약국'), 'capacity'].sum()),
                               "pharmacy": float(supply.loc[supply.fac_type.eq('약국'), 'capacity'].sum())},
             "scope": "동별 인구가중 중심점에 가상 시설 1곳 추가, 전체 주민 분모, 직선거리, 전후 기준선 min/max 고정. 실제 부지·도로 이동·진료과·운영시간·인력·예산·이용량 미반영. 시설 필요 수·정책 효과 산정 아님.",
-            "source_sha256": {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in source_paths}, "cases": cases}
+            "source_sha256": source_hashes, "cases": cases}
 
 
 def selected_case(payload, kind="hospital", km=None):
